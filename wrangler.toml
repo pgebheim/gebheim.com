@@ -6,3 +6,21 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[ai]
+binding = "AI"
+
+# INBOX_TOKEN is a secret, not a var: set it with `wrangler secret put INBOX_TOKEN`
+# (never commit it here). Tests provide a deterministic token via vitest.config.ts.
+
+[[durable_objects.bindings]]
+name = "FlueAgent"
+class_name = "FlueAgent"
+
+[[durable_objects.bindings]]
+name = "Inbox"
+class_name = "Inbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["FlueAgent", "Inbox"]
