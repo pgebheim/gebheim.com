@@ -33,4 +33,13 @@ describe("wrangler.toml", () => {
     expect(typeof config.name).toBe("string");
     expect(config.name.length).toBeGreaterThan(0);
   });
+
+  test("declares no email-send binding", () => {
+    const raw = readFileSync(join(root, "wrangler.toml"), "utf8");
+    expect(raw.toLowerCase()).not.toContain("send_email");
+    expect(Object.keys(config)).not.toContain("send_email");
+    expect(JSON.stringify(config)).not.toMatch(
+      /mailchannels|sendgrid|postmark|resend/i,
+    );
+  });
 });

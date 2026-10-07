@@ -14,11 +14,17 @@ export default defineConfig({
       },
       {
         plugins: [
-          cloudflareTest({ wrangler: { configPath: "./wrangler.toml" } }),
+          cloudflareTest({
+            wrangler: { configPath: "./wrangler.toml" },
+            // INBOX_TOKEN is a secret in production (wrangler secret); tests
+            // bind a deterministic value instead of committing one.
+            miniflare: { bindings: { INBOX_TOKEN: "test-inbox-token" } },
+          }),
         ],
         test: {
           name: "workers",
           include: ["tests/**/*.worker.test.ts"],
+          setupFiles: ["tests/setup.workers.ts"],
         },
       },
     ],

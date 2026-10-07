@@ -1,11 +1,153 @@
+import { getAgentByName } from "agents";
+import { runAgentTurn } from "./agent";
+import type { FlueAgent } from "./agent";
+import type { Inbox } from "./inbox";
+
+export { FlueAgent } from "./agent";
+export { Inbox } from "./inbox";
+
 export interface Env {
   ASSETS: {
     fetch(request: Request): Promise<Response>;
   };
+  AI: {
+    run(model: string, payload: unknown): Promise<unknown>;
+  };
+  FlueAgent: DurableObjectNamespace<FlueAgent>;
+  Inbox: DurableObjectNamespace<Inbox>;
+  INBOX_TOKEN: string;
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  const n = Math.max(x.length, y.length);
+  let diff = x.length === y.length ? 0 : 1;
+  for (let i = 0; i < n; i++) {
+    diff |= (x.length > 0 ? x[i % x.length] : 0) ^ (y.length > 0 ? y[i % y.length] : 0);
+  }
+  return diff === 0;
+}
+
+function parseCookies(header: string | null): Map<string, string> {
+  const cookies = new Map<string, string>();
+  if (!header) return cookies;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    cookies.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
+  }
+  return cookies;
+}
+
+function jsonrpcError(id: unknown, code: number, message: string): Response {
+  return Response.json({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
+}
+
+interface JsonRpcRequest {
+  jsonrpc?: unknown;
+  id?: unknown;
+  method?: unknown;
+  params?: {
+    message?: {
+      messageId?: unknown;
+      parts?: unknown;
+    };
+  };
+}
+
+async function handleAgentRpc(request: Request, env: Env): Promise<Response> {
+  let body: JsonRpcRequest;
+  try {
+    body = (await request.json()) as JsonRpcRequest;
+  } catch {
+    return jsonrpcError(null, -32700, "Parse error");
+  }
+  if (
+    !body ||
+    typeof body !== "object" ||
+    body.jsonrpc !== "2.0" ||
+    typeof body.method !== "string"
+  ) {
+    return jsonrpcError(body?.id ?? null, -32600, "Invalid Request");
+  }
+  if (body.method !== "message/send") {
+    return jsonrpcError(body.id ?? null, -32601, "Method not found");
+  }
+  const message = body.params?.message;
+  const parts = Array.isArray(message?.parts) ? message.parts : [];
+  const text = parts
+    .filter(
+      (p): p is { kind: string; text: string } =>
+        !!p && typeof p === "object" && (p as { kind?: unknown }).kind === "text" &&
+        typeof (p as { text?: unknown }).text === "string",
+    )
+    .map((p) => p.text)
+    .join("\n");
+  let reply: string;
+  try {
+    reply = await runAgentTurn(env, [], text);
+  } catch {
+    return jsonrpcError(body.id ?? null, -32603, "Internal error");
+  }
+  return Response.json({
+    jsonrpc: "2.0",
+    id: body.id ?? null,
+    result: {
+      id: typeof message?.messageId === "string" ? message.messageId : crypto.randomUUID(),
+      status: {
+        state: "completed",
+        message: { role: "agent", parts: [{ kind: "text", text: reply }] },
+      },
+    },
+  });
+}
+
+async function handleInbox(request: Request, env: Env): Promise<Response> {
+  const auth = request.headers.get("Authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+  const expected = env.INBOX_TOKEN ?? "";
+  if (!expected || !token || !timingSafeEqual(token, expected)) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  const raw = new URL(request.url).searchParams.get("after");
+  const parsed = raw === null ? 0 : Number(raw);
+  const after = Number.isFinite(parsed) ? parsed : 0;
+  const contacts = await env.Inbox.get(
+    env.Inbox.idFromName("inbox"),
+  ).listContacts(after);
+  return Response.json({ contacts });
+}
+
+const SESSION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function handleChat(request: Request, env: Env): Promise<Response> {
+  if ((request.headers.get("Upgrade") ?? "").toLowerCase() !== "websocket") {
+    return new Response("Expected a WebSocket upgrade", { status: 426 });
+  }
+  const cookie = parseCookies(request.headers.get("Cookie")).get("flue_session");
+  const existing = cookie && SESSION_ID_RE.test(cookie) ? cookie : undefined;
+  const sessionId = existing ?? crypto.randomUUID();
+  const stub = await getAgentByName(env.FlueAgent, sessionId);
+  if (existing) return stub.fetch(request);
+  const forward = new Request(request.url, request);
+  forward.headers.set("x-flue-new-session", sessionId);
+  return stub.fetch(forward);
 }
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/agent" && request.method === "POST") {
+      return handleAgentRpc(request, env);
+    }
+    if (url.pathname === "/agent/inbox" && request.method === "GET") {
+      return handleInbox(request, env);
+    }
+    if (url.pathname === "/api/chat") {
+      return handleChat(request, env);
+    }
     return env.ASSETS.fetch(request);
   },
 };
