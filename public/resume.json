@@ -1,0 +1,133 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Paul Gebheim",
+    "label": "Product Architect & Engineering Leader",
+    "url": "https://gebheim.com",
+    "summary": "Product architect and engineering leader with 20 years building software across distributed systems, crypto infrastructure, and applied AI — from real-time analytics at Justin.tv, to the first prediction market on Ethereum, to ZK at Polygon. Currently running incubations at Sei Labs.",
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "pgebheim",
+        "url": "https://github.com/pgebheim"
+      },
+      {
+        "network": "LinkedIn",
+        "username": "pgebheim",
+        "url": "https://www.linkedin.com/in/pgebheim/"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Sei Labs",
+      "position": "Product Architect & Engineering Manager, Incubations",
+      "startDate": "2025-05-01",
+      "highlights": [
+        "Lead Sei's incubations arm; helped found and launch multiple enterprises.",
+        "Neuromorphic Labs — founding team; raised $5M from Flying Fish Ventures.",
+        "EICO (acoco.ai) — founding engineer & team lead; architected and built the full multi-tenant, company-running agent loop platform; delivered V1.",
+        "Monaco (0xmonaco.com) — oversaw the engineering team for the initial build.",
+        "Alpha (tradealpha.app) — manage the engineering team building the product."
+      ]
+    },
+    {
+      "name": "Polygon Technology",
+      "position": "Senior Architect",
+      "startDate": "2022-12-01",
+      "endDate": "2025-04-30",
+      "highlights": [
+        "Rolled out the Type-1 zkEVM prover — full Ethereum-equivalence proofs for real mainnet blocks at $0.002–0.003/tx (~36x cheaper than competing provers), covered by CoinDesk and Blockworks.",
+        "Architecture and design for AggLayer and Polygon blockchain infrastructure; architecture lead for Katana Blockchain (spun off from Polygon).",
+        "Co-authored PIP-18 (Polygon 2.0 Phase 0 — Frontier) and PIP-42 (upgrade PoS staking to POL)."
+      ]
+    },
+    {
+      "name": "Dapper Labs",
+      "position": "Engineering Manager",
+      "startDate": "2021-11-01",
+      "endDate": "2022-12-31",
+      "highlights": [
+        "Led the Flow blockchain governance team; authored FLIP-1057: Automated Slot Assignment (implemented) and edited FLIP-GOV-1: Maintain Staking Rewards.",
+        "Published the Flow Access Architecture Specification and led milestone delivery for permissionless contract deployment and segmented transaction fees (FLIP-660)."
+      ]
+    },
+    {
+      "name": "Augur Project",
+      "position": "Head of Engineering",
+      "startDate": "2017-12-01",
+      "endDate": "2021-11-30",
+      "highlights": [
+        "Led backend engineering for Augur V1 — the first prediction market platform live on Ethereum.",
+        "Owned the full end-to-end architecture for Augur V2."
+      ]
+    },
+    {
+      "name": "Swoop, Inc",
+      "position": "Software Engineering Contractor",
+      "location": "San Francisco Bay Area",
+      "startDate": "2016-09-01",
+      "endDate": "2017-08-31",
+      "highlights": [
+        "Shipped tow-truck dispatch software; integrated the platform with a third-party data provider, opening job flow from insurance companies and motor clubs.",
+        "Owned research, architecture, and testing for the Rails backend; supported live customer issues.",
+        "Swoop was acquired by Agero."
+      ]
+    },
+    {
+      "name": "Monkey Inferno",
+      "position": "Senior Software Engineer",
+      "location": "San Francisco",
+      "startDate": "2010-11-01",
+      "endDate": "2014-07-31",
+      "highlights": [
+        "Built Beerhunt — iOS beer social network (\"Foursquare for beer\"), launched at DEMO Mobile 2013.",
+        "Built Blab — 1-to-many group live-video social network.",
+        "Built Water Forward — viral pay-it-forward fundraising engine for charity: water."
+      ]
+    },
+    {
+      "name": "Justin.tv",
+      "position": "Senior Software Engineer",
+      "startDate": "2009-10-01",
+      "endDate": "2010-11-30",
+      "highlights": [
+        "Maintained and replaced legacy statistics system; implemented a log analytics framework on Hadoop Map/Reduce.",
+        "Created a real-time discrete event tracking system on MongoDB — presented at MongoSF.",
+        "Built Beancounter, a web front-end for visualizing time-series statistics, plus JavaScript libraries for user tracking and log generation.",
+        "Implemented an iPhone push notification provider system."
+      ]
+    },
+    {
+      "name": "Coral8, Inc",
+      "position": "Senior Software Engineer",
+      "startDate": "2006-03-01",
+      "endDate": "2009-05-31",
+      "highlights": [
+        "Built core components of the Complex Event Processing engine in C++: high-speed data bus, pub/sub queuing, reliable persistent transport.",
+        "Designed and implemented SOAP/HTTP RPC layers, remote-database caching, and ACL-based client/server security.",
+        "Designed persistent data structures on a SQLite-based persistence engine; helped build the high-speed query execution engine.",
+        "Coral8 merged with Aleri and was acquired by Sybase (now SAP)."
+      ]
+    },
+    {
+      "name": "University of Wisconsin–Madison",
+      "position": "Executive Student Programmer",
+      "startDate": "2004-09-01",
+      "endDate": "2006-03-31",
+      "highlights": [
+        "Supported public and private network access for hotel guests and UW staff.",
+        "Designed and optimized a marketing data warehouse; built ASP.NET front-ends and automated data synchronization from external stores.",
+        "Maintained VB/database financial applications and custom ASP/ASP.NET apps for student data and course enrollment."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of Wisconsin–Madison",
+      "area": "Computer Science",
+      "studyType": "B.S.",
+      "endDate": "2005"
+    }
+  ]
+}
