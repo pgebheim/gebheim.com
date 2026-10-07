@@ -18,7 +18,14 @@ export default defineConfig({
             wrangler: { configPath: "./wrangler.toml" },
             // INBOX_TOKEN is a secret in production (wrangler secret); tests
             // bind a deterministic value instead of committing one.
-            miniflare: { bindings: { INBOX_TOKEN: "test-inbox-token" } },
+            miniflare: {
+              bindings: {
+                INBOX_TOKEN: "test-inbox-token",
+                // x402 gate ships disabled; gated tests flip it on in-test
+                // with the same env-override pattern as the AI mock.
+                X402_ENABLED: "false",
+              },
+            },
           }),
         ],
         test: {

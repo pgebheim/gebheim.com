@@ -13,6 +13,25 @@ binding = "AI"
 # INBOX_TOKEN is a secret, not a var: set it with `wrangler secret put INBOX_TOKEN`
 # (never commit it here). Tests provide a deterministic token via vitest.config.ts.
 
+# x402 payment gate (issue #7): ships DISABLED. To enable, add under [vars]:
+#   X402_ENABLED = "true"
+# Any other value (including unset) disables the gate; vitest.config.ts binds
+# "false" and gated tests flip it on in-test.
+#
+# A future verifier service binding named X402_VERIFIER must expose
+#   verify(proof: string): Promise<string | null>
+# resolving to the payer address on a valid payment and null on an invalid or
+# replayed proof. The payment network and verifier implementation are still
+# undecided (human blocker); while the binding is absent the worker rejects
+# every X-Payment proof with 402.
+#
+# X402_PAY_TO is the wallet advertised in the 402 accepts entry. It stays
+# unset until the wallet decision lands; while unset the 402 body carries no
+# accepts entry and the header reports network=undecided, so the gate fails
+# closed instead of pointing payers at a placeholder address. To configure,
+# add under [vars]:
+#   X402_PAY_TO = "0x..."
+
 [[durable_objects.bindings]]
 name = "FlueAgent"
 class_name = "FlueAgent"
