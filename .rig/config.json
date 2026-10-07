@@ -1,0 +1,38 @@
+{
+  "$schema": "./rig.schema.json",
+  "project": {
+    "name": "gebheim.com",
+    "repo": "pgebheim/gebheim.com"
+  },
+  "runtime": {
+    "packageManager": "bun"
+  },
+  "test": {
+    "command": "bun run test",
+    "requiresDatabase": false
+  },
+  "sourceScope": ["src", "public"],
+  "vcs": {
+    "defaultBranch": "main",
+    "baseRef": "origin/main",
+    "branchConvention": "{user}/{slug}"
+  },
+  "tracker": {
+    "provider": "none"
+  },
+  "review": {
+    "patternsFile": ".rig/REVIEWER.md",
+    "bot": "none",
+    "maxRounds": 3
+  },
+  "style": {
+    "guideFile": ".rig/STYLE.md"
+  },
+  "agents": {
+    "debugger": "rig-debugger",
+    "reviewer": "rig-reviewer",
+    "architect": "rig-architect",
+    "qa": "rig-qa",
+    "coder": "rig-coder"
+  }
+}

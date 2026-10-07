@@ -1,0 +1,419 @@
+---
+name: rig-epic
+description: "Plan and run a multi-ticket epic: decompose a feature into parent + child items and stack PRs on a shared integration branch instead of landing each on main. Use when children interleave (one item's runtime contract depends on another's incomplete state) — stacking keeps each child PR reviewable without temporarily breaking main, then squashes to main once. Triggers on: 'epic', 'plan epic', 'plan this as an epic', 'break this into an epic', 'start epic', 'integration branch', 'stack PRs', 'finish epic'."
+argument-hint: "status | plan <FEATURE> | start <PARENT> | next | run [--advisor] | review [<PARENT>] | finish [<PARENT>] [--merge] | prune"
+---
+
+# rig-epic — integration-branch workflow
+
+For multi-item arcs where landing each item directly on the trunk would
+temporarily break the runtime contract, stack child PRs on a shared
+**integration branch** and squash that branch into the trunk as one PR at the
+end. Each child PR is reviewed *as the step it actually is*; the trunk-bound
+delivery is one squashed rebase.
+
+## Configuration
+
+Reads `.rig/config.json` (defaults in parentheses):
+
+- `tracker.provider` — `linear` | `github` | `none` (`none`). How parent/child
+  items are stored. `none` → items live only in the epic **run state** (below);
+  no tracker calls.
+- `tracker.team` / `tracker.project` / `tracker.ticketPrefix` / `tracker.githubIntegration`.
+- `tracker.shapeLabels.epic` (`epic`) — GitHub-only label put on the parent at
+  creation so a Project board / dispatcher can distinguish the epic from child
+  `feature` issues. Omit `shapeLabels` to skip.
+- `tracker.board` — GitHub Projects v2 identity. When set, the **parent's** board
+  transitions and each child's **Done** move go through the `rig-tracker` adapter
+  (`gh issue edit` can't touch a ProjectV2 Status field). Resolver used below:
+  `<TRACKER>` = `.rig/rig-tracker` if executable else `<RIG_DIR>/scripts/rig-tracker.sh`
+  (see [`docs/tracker-adapter.md`](../../docs/tracker-adapter.md)). Absent → skip
+  the board moves; the `linear`/`none` paths are unchanged.
+- `vcs.baseRef` (`origin/main`), `vcs.defaultBranch` (`main`),
+  `vcs.protectedBranchMergeQueue` (`false`).
+- `sourceScope[0]` — where to explore during `plan`.
+- `agents.architect` / `agents.reviewer` (default `rig-<role>`) — for the
+  fresh-context `review` panel.
+- `style.guideFile` (`.claude/STYLE.md`) — how parent/child ticket bodies, the
+  `finish` PR body, and every status report are written.
+
+Delegates to `/rig-task` (per child), `/rig-worktree` (checkouts), `/rig-review`
++ `/rig-review fix` (the combined-diff review), `/rig-tidy` (optional).
+
+### Epic run state (replaces any external memory)
+
+Each active epic is one **run state** document, keyed by its integration branch
+— `.rig/state/<integration-branch>.json`. Read and write it through
+`rig-state`, which validates every update outside the model; see
+[`docs/state.md`](../../docs/state.md). Resolve the helper once: `<STATE>` =
+`bun <SCRIPTS>/rig-state.ts`, with `<SCRIPTS>` resolved from the repo root — `.claude/scripts/` then
+`.rig/scripts/`, first hit wins, as in [`/rig-worktree`](../rig-worktree/SKILL.md).
+
+```jsonc
+{
+  "runId": "abc-42-agent-as-definition",   // = the integration branch
+  "skill": "rig-epic",
+  "phase": "plan|start|run|review|finish|done",
+  "parent": { "id": "ABC-42", "title": "…", "source": "linear|github|none" },
+  "integrationBranch": "abc-42-agent-as-definition",
+  "whyEpic": "which children interleave and why",
+  "children": [
+    { "id": "ABC-43", "title": "…", "blockedBy": [], "branch": null, "pr": 0, "status": "todo|in-progress|blocked|merged" }
+  ],
+  "specReview": { "frontLoaded": true, "outcome": "cleared", "blockers": [] },
+  "combinedReview": { "outcome": "pending", "p0": 0, "p1": 0, "p2": 0 },
+  "nextAction": "run child ABC-44"
+}
+```
+
+Three guards make the document assert the gates this skill already describes.
+`finish` requires every child at `merged`. `review` requires at least one merged
+child. A `merged` child has to record its `branch`. A rejected patch means the
+epic isn't where you think it is — read the reason, don't work around it.
+
+**Where the truth lives.** On `tracker: github`, the source of truth is the
+**parent issue and its native sub-issues on the tracker** — not this document.
+It's a *local cache* rebuilt from the tracker (`gh api
+repos/<repo>/issues/<parent>/sub_issues`), and it is **gitignored — never
+committed** (`.rig/state/` is in `.gitignore`). On `linear` the parent/children
+live in Linear; on `none` the document is the only record. Either way it's
+throwaway coordination state, rebuildable from the tracker at any time — the
+board is the shared brain, not the repo.
+
+If the `rig-state` script is absent, keep the same document by hand at the same
+path and carry on — the validation is an accelerator, not a dependency.
+
+`next`/`run`/`review`/`finish`/`prune` read the reconstructed set
+(`<STATE> show <integration-branch>`). Parent
+inference (when `<PARENT>` is omitted): on `github`, the open issue labelled
+`shapeLabels.epic` that has sub-issues; else if exactly one `rig-epic` run
+exists (`<STATE> list --skill rig-epic`), use it; if zero or many, ask.
+
+**Intent banner:** every invocation MUST print one line first — mode, what
+branch PRs target, what it won't do:
+
+```
+rig-epic: <subcommand> — <action>. PRs target <branch>. Will not <thing>.
+```
+
+## `status` (default, report-only)
+
+Read the epic run state(s): `<STATE> list --skill rig-epic`, then `<STATE> show
+<integration-branch>` for each.
+
+Report: integration branch + commits ahead of
+`vcs.baseRef`; open child PRs (`gh pr list --base <integration-branch>`) and
+their state; each child's tracker status (if a tracker); leftover merged/deleted
+worktrees (suggest `/rig-epic prune`); and a one-line recommendation (`open child
+PR X`, `ready for /rig-epic next`, or `ready for /rig-epic finish`). Modify
+nothing; spawn nothing.
+
+## `plan <FEATURE>`
+
+Decompose a feature into a parent + 3–8 children, open the run state, then
+chain into `start`.
+
+Use this only when the work is genuinely epic-shaped (children interleave —
+at least one child's runtime contract depends on another being partially
+complete). If the items are independent and each can land on the trunk alone,
+stop and tell the user to run `/rig-sprint plan` instead — same decomposition,
+no integration branch.
+
+### Procedure
+1. **Read context.** Product/spec docs if the project has them (ask if unsure);
+   explore the codebase (`sourceScope[0]`) to see what exists. If a tracker is
+   configured, search it for near-duplicate items first.
+2. **Sanity-check it's an epic** (per the interleave test above). If not → send
+   to `/rig-sprint plan`.
+3. **Create the parent.**
+   - `tracker: linear`/`github` → create the parent item (team/project from
+     config); description covers Overview, why-it's-an-epic, and the planned
+     children.
+   - **GitHub only — mark the shape.** After creating the parent, apply the epic
+     shape label so a Project board / dispatcher can tell the parent apart from
+     the child `feature` issues: `gh issue edit <parent#> --add-label "<L>"`
+     where `<L>` = `tracker.shapeLabels.epic` (default `epic`). Ensure the label
+     exists first (`gh label create "<L>" --force`). Skip entirely if
+     `tracker.shapeLabels` is absent. (Linear needs no label — native parent
+     grouping already distinguishes the epic.)
+   - `tracker: none` → the parent is a slug + title recorded in the run state only.
+4. **Create each child** with its dependency edges.
+   - Small enough for one agent session (1–3 files); concrete, testable
+     acceptance criteria; foundational work first.
+   - **Record `blockedBy` for every real dependency** — this is what `next`
+     reads to pick the next unblocked child. Without it the pick falls back to
+     declaration order and gets interleaved epics wrong.
+   - **`tracker: github`**: create each child as its own issue, then **link it as
+     a native sub-issue of the parent** —
+     `gh api repos/<repo>/issues/<parent#>/sub_issues -F sub_issue_id=$(gh api repos/<repo>/issues/<child#> -q .id)` —
+     and write "Blocked by #<n>" in the child body (GitHub has no native
+     blockedBy). The sub-issues **are** the epic on the board; the run state's
+     `children` cache is derived from them, never the other way around.
+   - **`tracker: linear`**: set the native parent + blocked-by relations.
+   - **`none`**: the run state is the only record.
+5. **Show a summary table** (ID · Title · Depends On), then **open the run
+   state**:
+   `<STATE> init rig-epic <integration-branch> --json '{"parent":{…},"whyEpic":"…","children":[…],"nextAction":"cut the integration branch"}'`
+   (patch `children` instead if the run already exists).
+6. **Chain into `start <PARENT>`** — `plan` is plan-and-start; don't stop to ask.
+7. **Stop after `start`.** Report the integration branch, the children, and the
+   next step (`/rig-epic next` for one, `/rig-epic run` for the loop). Never
+   auto-start `run` — execution is an explicit opt-in.
+
+## `start <PARENT>`
+
+Pre-flight: `git fetch origin`; confirm the parent and at least one child exist
+(in the tracker, or as arguments for `none`).
+
+**Rebuild the cache from the tracker (github).** If `<PARENT>` is an existing
+GitHub epic (e.g. `/rig-epic 42` or `/rig-epic run`), reconstruct the children
+from its **sub-issues** rather than trusting any local file:
+`gh api repos/<repo>/issues/<parent#>/sub_issues` → each becomes a child (id =
+issue number, `blockedBy` parsed from "Blocked by #n" in the body,
+`status` from open/closed + board column). Write that to the run state —
+`<STATE> init rig-epic <integration-branch> --json '{…}'`, or patch `children`
+if the run already exists. This is what makes an epic you were handed on the
+board runnable — no committed state required.
+
+1. **Integration branch name:** `<parent-slug>-<title-slug>` (kebab, e.g.
+   `abc-42-agent-as-definition`).
+2. **Cut the integration branch from `vcs.baseRef`** without a local checkout:
+   ```bash
+   git fetch origin
+   git push origin <vcs.baseRef>:refs/heads/<integration-branch>
+   ```
+   Non-destructive. If the branch already exists, leave it (never overwrite —
+   could destroy in-flight work).
+3. **Write the run state** (schema above) with the parent, why-epic, and every
+   child + `blockedBy`:
+   `<STATE> patch <integration-branch> --step start --json '{"phase":"start","integrationBranch":"…","children":[…],"nextAction":"first unblocked child"}'`.
+   This is what makes each `/rig-task <child>` target the integration branch
+   instead of the trunk.
+4. **If a tracker is configured**, add an "Integration branch: target
+   `<integration-branch>`, not the trunk" note to each child so the next agent
+   doesn't re-read this skill, and ensure the **parent** is In Progress
+   (adaptive: move it only if not already started; defer if a live integration
+   did). On a **`tracker: github` board**, do the parent move through the adapter:
+   `<TRACKER> set-status <parent#> "<tracker.board.statusOptions.inProgress>"`.
+   Children get their own In Progress from their `/rig-task` Step 1.
+5. **Name the session** `"EPIC: <parent title> (<parent>)"` via
+   `scripts/set-session-name.sh` (Claude-Code-only; no-ops elsewhere) so the
+   background-job list reads as the epic. Children set their own `FEAT:`/`CHORE:`
+   names with `--skip-if-prefix "EPIC:"`, so this epic label stays on top.
+6. **Report** the branch, the children, and the next step.
+
+## `next` (single child)
+
+1. Resolve the active integration branch (one expected; ask if many). If the
+   session isn't already `EPIC:`-named (i.e. `next` invoked directly, not via
+   `start`), name it `"EPIC: <parent title> (<parent>)"` (Claude-Code-only).
+2. **Pick the next unblocked child:** the first not-done child whose `blockedBy`
+   are all merged into the integration branch. State the pick + reasoning in the
+   banner.
+3. **Ensure the previous child has landed.** With `--auto-merge` (Step 4) each
+   child's PR merges into the integration branch on its own once CI passes, so the
+   integration tip advances automatically — just `git fetch origin` and confirm.
+   (Fallback for a child run *without* `--auto-merge`: fast-forward the branch over
+   its tip — `git push origin origin/<previous-child-branch>:refs/heads/<integration-branch>`,
+   which auto-closes that PR as MERGED. Safe to re-run.)
+4. **Run `/rig-task <CHILD> --base <integration-branch> --auto-merge`** (add
+   `--spec-cleared` when `run`'s front-loaded spec review already cleared the
+   specs) — `--base` makes the child's worktree branch from, and its PR target, the
+   integration branch; `--auto-merge` makes the child enable `gh pr merge --squash --auto` on
+   its own PR once its review is clean, so **CI lands it into the integration
+   branch** (always **squash** — don't rebase-merge; many repos disallow it. If the
+   integration branch has no required checks, the child merges directly). Run
+   one-shot (start→finish); it returns a single outcome string for the merge gate.
+5. **Merge gate — only `clean` is merge-green:**
+   - `clean` → the child enabled auto-merge, so its PR lands when CI passes.
+     **Wait** for it: poll `gh pr view <N> --json state` (~60s, up to ~30min)
+     until `MERGED`, then `git fetch origin` and confirm the tip advanced. Patch the
+     child to `merged` with its branch and PR number — send the whole `children`
+     array, since arrays replace wholesale — and point `nextAction` at the next
+     pick. Then **ensure the child ticket is Done** (adaptive — move only if not already Done; defer if a live
+     integration closed it). On a **`tracker: github` board**, move it via the
+     adapter: `<TRACKER> set-status <child#> "<tracker.board.statusOptions.done>"`.
+     (The child's PR merged into the **integration branch**, not the default
+     branch, so its `Closes #<n>` has **not** fired. The adapter move is what
+     marks it Done now. The issue closes when the epic squashes to trunk.)
+     If CI fails / it never merges → treat as not-clean.
+   - anything else (`actionable`/`timeout`, or a tracker-parked state) → the child
+     did **not** enable auto-merge; stop. Surface the outcome, the PR URL, and any
+     reviewer summary. Wait for the user; don't retry a parked review.
+
+`next` does exactly one child. Use `run` for the loop.
+
+## `run [--advisor]`
+
+**Front-loaded spec review — once, before the loop.** Review **all** children's
+specs together, up front, instead of discovering blockers one child at a time
+mid-run. A child that pauses on a spec question stalls the whole epic (and under
+parallel or durable execution, a paused child can fail the batch outright), so
+resolve the specs before any child starts coding:
+1. Fan out `agents.architect` + `agents.qa` over **every** child's spec, read
+   against the integration branch; each returns its blockers.
+2. Consolidate into one blocker list and resolve it **once** — clarify in the
+   tracker, or decide with the user. This is the epic's single spec decision
+   point. **Patch:**
+   `{"phase":"run","specReview":{"frontLoaded":true,"outcome":"cleared|halted","blockers":[…]},"nextAction":"first unblocked child"}`
+   — so a resumed session knows the specs are cleared and doesn't re-run the
+   fan-out.
+3. Then run each child with its own spec gate **pre-cleared**:
+   `/rig-task <CHILD> --base <integration-branch> --auto-merge --spec-cleared`, so
+   no child re-pauses on a question already answered.
+
+This is the *pre-coding* spec pass; the combined-diff `review` (below) is the
+*post-merge* code pass — different gates.
+
+**`--advisor` (unattended).** Decide that front-loaded gate with an **advisor
+pass** instead of a human: a delegated `agents.architect` review reads the
+architect + QA specs and either **proceeds** with synthesized per-child direction
+(handed verbatim to each child's coder), or **halts** with a blocked report naming
+what a human must decide. No human waits, so the epic runs hands-off to child PRs;
+a genuine blocker still stops it rather than fanning out on a bad spec. (The paired
+Smithers durable workflow implements this with a cheap model — the "Fable
+advisor" — so kicked-off epics never park at the gate.)
+
+Then loop `next` until no unblocked child remains:
+```
+while an unblocked child exists:
+  run /rig-epic next            # children run --spec-cleared (spec was front-loaded)
+  if it stopped without merging (outcome ≠ clean) → stop, hand back
+  else → re-evaluate unblocked children
+```
+When the queue empties, report "epic ready for `/rig-epic finish`."
+
+## `review [<PARENT>]`
+
+Run after the last child merged into the integration branch, before `finish`.
+Per-PR review (`/rig-review` inside each `/rig-task`) sees each child in
+isolation; this sees the *combined* shape and the *simplification* only visible
+once everything is in. Fresh-context sub-agents (input = the squashed diff +
+child PR titles) can't inherit the implementer's remembered rationalizations.
+
+**Run before `prune`** — the review sub-agents need a working checkout; reuse a
+child worktree if one still exists (avoids a fresh install + env re-symlink).
+
+1. Resolve the integration branch; `git fetch origin`.
+2. **Ensure an integration-branch worktree** (`$WT`). Reuse a merged-child
+   worktree fast-forwarded to the integration tip, else create one with
+   `/rig-worktree` (`--base <integration-branch> --reuse`).
+3. **Fan out three sub-agents in parallel** (one message, three `Agent` calls),
+   each `cd`-ing into `$WT` with the integration tip checked out:
+   - **Lens 1 — Simplification (`agents.architect`):** diff
+     `git diff <vcs.baseRef>...HEAD`; child PR list via `gh pr list --base
+     <BR> --state merged`. Mandate: find abstractions to collapse, helpers one
+     PR added that another PR's final shape made redundant, config knobs nobody
+     sets, code paths the combined diff made dead, one-caller types. Concrete
+     deletions/merges, file:line, highest-impact first. Skip correctness.
+   - **Lens 2 — Cross-PR correctness (`agents.reviewer`):** walk the project's
+     review-pattern catalog (`review.patternsFile`) against the *combined* diff.
+     Per-PR review already ran; catch interactions only visible at the merged
+     shape (PR-A's helper vs PR-D's stale caller; PR-B removed a knob PR-F still
+     reads). P0/P1/P2 with file:line + category.
+   - **Lens 3 — Dead code & stale refs (`agents.reviewer`):** for every symbol
+     the diff *added*, is it called elsewhere? For every symbol *removed*, grep
+     the tree (workflows, manifests, IaC, scripts, docs) for residual refs.
+     Report with file:line.
+4. **Consolidate** — dedupe, produce one P0/P1/P2 list grouped by lens, print
+   counts.
+5. **Triage:**
+   - 0 items → `clean — ready for /rig-epic finish`, stop.
+   - findings → ask via `AskUserQuestion`: `apply now` / `skip and finish
+     anyway` (downgrade to follow-ups) / `pause`. On `apply now`, run
+     `/rig-review fix --source local` in `$WT` (spawns `agents.coder`,
+     re-reviews to clean), commit + `git push origin <integration-branch>`,
+     re-run `review` once to confirm convergence.
+6. **Outcome string** (for `finish`): `clean — …` / `applied — …` / `paused — …`.
+   **Patch:** `{"phase":"review","combinedReview":{"outcome":"clean|applied|paused","p0":<n>,"p1":<n>,"p2":<n>},"nextAction":"…"}`.
+   `review` is guarded on at least one merged child; a rejection means no child
+   has landed yet.
+
+## `finish [<PARENT>] [--merge]`
+
+Squashes the whole integration branch into a single PR to the trunk. **Default:
+open the PR and stop** — this is the one PR to eyeball.
+
+**`review` is a hard gate.** `finish` always runs `review` first; the squash PR
+opens only on `clean` or `applied`. On `paused`, stop and wait.
+
+1. **Run `review` (gate)** inline; branch on its outcome (`clean`/`applied` →
+   proceed; `paused` → stop and print pending findings).
+2. **Refresh & rebase if needed.** `git fetch origin`; list
+   `git log <vcs.baseRef>..origin/<integration-branch> --oneline`. If the trunk
+   moved, rebase the integration branch onto it first
+   (`git rebase <vcs.baseRef>` on a local copy, then
+   `git push --force-with-lease origin <local>:<integration-branch>`).
+3. **Open the final PR** to `vcs.defaultBranch` with a title referencing the
+   parent and a body summarizing all children. In a tracker with a closes-verb
+   (`Fixes <PARENT>` / `Closes #<n>`), include it so the parent auto-closes.
+   **On `tracker: github`, also add a `Closes #<child>` line for every child
+   issue** — children merged into the integration branch (not the default), so
+   their close verbs never fired; this squash to the trunk is where they finally
+   close. (Their board items were already moved to Done in `next` step 5.)
+4. **Merge behavior:**
+   - default → stop, print the PR URL (squash-to-trunk is the human gate).
+   - `--merge` → `gh pr merge <N> --squash --delete-branch`, adding `--auto` if
+     CI gates it. **If `vcs.protectedBranchMergeQueue` is true**, use
+     `gh pr merge <N> --auto` with **no** method flag (the queue's method wins).
+5. **Parent state — adaptive** (don't trust `tracker.githubIntegration`; check
+   reality): with `--merge`, once the squash PR is MERGED ensure the parent is
+   **Done** (move only if not already Done — the closes-verb also closes it if a
+   live integration is connected; don't clobber). On a **`tracker: github`
+   board**, do the move via the adapter:
+   `<TRACKER> set-status <parent#> "<tracker.board.statusOptions.done>"`. Without
+   `--merge`, leave the parent In Progress — it goes Done when a human merges the
+   squash PR (a later `finish`/reconcile run, or a live integration's closes-verb,
+   sets it).
+6. **Close the run** — `<STATE> patch <integration-branch> --json
+   '{"phase":"done","nextAction":null}'`. Once the squash PR merges, the work is
+   on the trunk: `<STATE> rm <integration-branch>`. `phase: finish` is guarded on
+   every child being `merged`, so a rejection there names the child still
+   outstanding.
+7. **Offer local verification.** Ask whether to verify the epic on a local build
+   before moving on. If the project ships a local-run/QA skill, invoke it **from
+   the integration-branch worktree** (`cd` there first — don't accidentally serve
+   the trunk). Otherwise point the user at the project's run instructions.
+
+## `prune`
+
+Remove integration-branch worktrees whose branches are merged (auto-closed PRs)
+or gone on origin. Epic-specific *policy* here; the teardown delegates to
+`/rig-worktree rm` so the skip-if-dirty safety lives in one place.
+
+1. **List candidates:** `git worktree list --porcelain`; for each child-branch
+   worktree, check whether its PR is `MERGED`/`CLOSED` or its remote tracking
+   branch is gone (`/rig-worktree list` prints this table — reuse it).
+2. **Keep-one-for-review rule:** until `finish` lands the squash PR, keep one
+   usable worktree (most recent merged child, or an explicit integration-branch
+   worktree) so `review` doesn't pay a fresh install + env re-symlink. After
+   `finish`, all are fair game.
+3. **Remove the rest** via `/rig-worktree rm` (dirty worktrees are skipped, not
+   removed). Report removed / kept (+why) / skipped (+reason).
+
+## Gotchas
+
+- **Long-lived integration branches drift.** If the trunk moves during the epic,
+  rebase the integration branch periodically — catching drift mid-epic beats a
+  painful conflict at `finish`.
+- **Don't force-push the integration branch except when rebasing onto the
+  trunk.** In-flight child PRs are based on its tip; a rewrite breaks them. The
+  FF-between-children pattern advances the branch without rewriting history.
+- **Auto-closed PRs aren't reviewed.** FF'ing over a child's tip closes its PR as
+  MERGED without a gate — the real review is `finish`'s combined squash PR. If a
+  child truly needs its own review, hold off FF'ing and let the user merge it.
+- **Run state carries the *why*.** The integration branch carries the code; the
+  run state carries why-it's-an-epic, the dependency chain, and what got
+  descoped. Future sessions shouldn't re-derive the plan. It also carries the
+  loop position: which child is in flight, which spec blockers are already
+  resolved, and what the combined review found. That position is what an epic
+  loses to a compacted transcript.
+- **Drive tracker state adaptively — `githubIntegration` is a hint, not a gate.**
+  The flag can claim `true` while nothing is actually connected (no PR ever links
+  to an issue), which silently strands tickets. So *ensure* each transition
+  idempotently: check the item's current state, move it only if it isn't already
+  there, and defer if a live integration already moved it (never clobber a
+  further-along state). rig sets parent In Progress (`start`), child Done (`next`,
+  once its PR is MERGED), and parent Done (`finish --merge`); a live branch +
+  closes-verb integration, if present, just gets there first. (Each child's
+  start-of-work "In Progress" is set by its own `/rig-task`, Step 1.)

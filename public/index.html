@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paul Gebheim — Resume</title>
+<style>
+  /* lilco.dev Tiny Club tokens, personalized */
+  :root {
+    color-scheme: light;
+    --paper: #f5eddf;
+    --ink: #24221e;
+    --muted: #6d665d;
+    --berry: #b93b67;
+    --berry-dark: #76203f;
+    --gold: #d49c46;
+    --line: rgba(36, 34, 30, 0.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    background: var(--paper); color: var(--ink);
+    line-height: 1.55; margin: 0; font-size: 16px;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: 0.13;
+    background-image: radial-gradient(rgba(36, 34, 30, 0.32) 0.6px, transparent 0.6px);
+    background-size: 7px 7px; mix-blend-mode: multiply;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  header h1 {
+    margin: 0 0 .4rem; font-size: clamp(2.6rem, 7vw, 4.5rem);
+    letter-spacing: -0.04em; line-height: 1.02;
+  }
+  header .tagline { color: var(--muted); margin: 0 0 .6rem; font-size: 1.05rem; font-style: italic; }
+  header .links a {
+    color: var(--berry-dark); text-decoration: none; margin-right: 1rem; font-size: .92rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  header .links a:hover { text-decoration: underline; }
+  h2 {
+    color: var(--berry-dark);
+    font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-transform: uppercase; letter-spacing: .11em;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: .3rem; margin: 2.25rem 0 1rem;
+  }
+  .job { margin-bottom: 1.5rem; page-break-inside: avoid; }
+  .job-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0 1rem; }
+  .job-head .role { font-weight: 700; font-size: 1.05rem; }
+  .job-head .dates { color: var(--muted); font-size: .88rem; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .job .org { color: var(--berry); font-weight: 700; }
+  .job .loc { color: var(--muted); font-size: .88rem; }
+  a { color: var(--berry-dark); }
+  ul { margin: .4rem 0 0; padding-left: 1.2rem; }
+  li { margin-bottom: .25rem; }
+  .summary { margin-top: .75rem; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    body::before { display: none; }
+    main { padding: 0; max-width: none; }
+    a { color: inherit; text-decoration: none; }
+    section a[href^="http"]::after {
+      content: " (" attr(href) ")";
+      font-size: .78em; color: #555; overflow-wrap: anywhere;
+    }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Paul Gebheim</h1>
+    <p class="tagline">Product Architect &amp; Engineering Leader — distributed systems, crypto infrastructure, applied AI</p>
+    <p class="links">
+      <a href="https://www.linkedin.com/in/pgebheim/">linkedin.com/in/pgebheim</a>
+      <a href="https://github.com/pgebheim">github.com/pgebheim</a>
+    </p>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <p class="summary">
+    Hi, I&rsquo;m Paul. I&rsquo;ve spent the better part of 20 years building software that gets stuff done,
+    makes things go, shows you what&rsquo;s up, or keeps people connected &mdash; from real-time analytics at
+    Justin.tv (before it became Twitch), to the first prediction market on Ethereum, to ZK at Polygon.</p>
+    <p class="summary">
+    So I like software, but I love changing lives &mdash; whether that&rsquo;s a beer social network
+    (built one), a pay-it-forward fundraiser for charity: water (built that too), or a live-video app
+    millions of people used (yep, that too). These days I run incubations at Sei Labs, where I&rsquo;ve
+    helped found two ventures and shipped an agent platform that runs whole companies.</p>
+  </section>
+
+  <section>
+    <h2>Experience</h2>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Product Architect &amp; Engineering Manager, Incubations</span>
+        <span class="dates">May 2025 – Present</span>
+      </div>
+      <span class="org">Sei Labs</span>
+      <ul>
+        <li>Lead Sei&rsquo;s incubations arm; helped found and launch multiple enterprises:</li>
+        <li>AI Infrastructure
+          <ul>
+            <li><strong>Neuromorphic Labs</strong> — founding team; <a href="https://neuromorphiclabs.ai/press/seed-funding">raised $5M from Flying Fish Ventures</a>.</li>
+            <li><strong>EICO — <a href="https://acoco.ai">acoco.ai</a></strong> — founding engineer &amp; team lead; architected and built the full multi-tenant, company-running agent loop platform; delivered V1.</li>
+          </ul>
+        </li>
+        <li>Trading Applications
+          <ul>
+            <li><strong><a href="https://0xmonaco.com/">Monaco</a></strong> — oversaw the engineering team for the initial build.</li>
+            <li><strong><a href="https://www.tradealpha.app/">Alpha</a></strong> — manage the engineering team building the product.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Senior Architect</span>
+        <span class="dates">Dec 2022 – Apr 2025</span>
+      </div>
+      <span class="org">Polygon Technology</span>
+      <ul>
+        <li>Rolled out the <a href="https://polygon.technology/blog/upgrade-every-evm-chain-to-zk-introducing-the-type-1-prover">Type-1 zkEVM prover</a> — full Ethereum-equivalence proofs for real mainnet blocks at $0.002–0.003/tx (~36x cheaper than competing provers), covered by <a href="https://www.coindesk.com/tech/2024/02/08/polygon-releases-type-1-prover-claiming-milestone-set-by-ethereums-vitalik-buterin">CoinDesk</a> and Blockworks.</li>
+        <li>Architecture and design for AggLayer and Polygon blockchain infrastructure; architecture lead for Katana Blockchain (spun off from Polygon).</li>
+        <li>Co-authored PIP-18 (Polygon 2.0 Phase 0 — Frontier) and PIP-42 (upgrade PoS staking to POL).</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Engineering Manager</span>
+        <span class="dates">Nov 2021 – Dec 2022</span>
+      </div>
+      <span class="org">Dapper Labs</span>
+      <ul>
+        <li>Led the Flow blockchain governance team; authored <a href="https://forum.flow.com/t/flip-1057-automated-slot-assignment/3447">FLIP-1057: Automated Slot Assignment</a> (implemented) and edited <a href="https://forum.flow.com/t/flip-gov-1-maintain-staking-rewards/3340">FLIP-GOV-1: Maintain Staking Rewards</a>.</li>
+        <li>Published the <a href="https://forum.flow.com/t/flow-access-architecture-specification/2902">Flow Access Architecture Specification</a> and led milestone delivery for permissionless contract deployment and segmented transaction fees (<a href="https://forum.flow.com/t/segmented-transaction-fees-are-coming-to-flow/2941">FLIP-660</a>).</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Head of Engineering</span>
+        <span class="dates">Dec 2017 – Nov 2021</span>
+      </div>
+      <span class="org">Augur Project</span>
+      <ul>
+        <li>Led backend engineering for Augur V1 — the first prediction market platform live on Ethereum.</li>
+        <li>Owned the full end-to-end architecture for Augur V2.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Software Engineering Contractor</span>
+        <span class="dates">Sep 2016 – Aug 2017</span>
+      </div>
+      <span class="org">Swoop, Inc</span> · <span class="loc">San Francisco Bay Area — <a href="https://www.globenewswire.com/news-release/2018/01/09/1286091/0/en/Agero-Acquires-Digital-Dispatch-Platform-Provider-Swoop.html">acquired by Agero</a></span>
+      <ul>
+        <li>Shipped tow-truck dispatch software; integrated the platform with a third-party data provider, opening job flow from insurance companies and motor clubs.</li>
+        <li>Owned research, architecture, and testing for the Rails backend; supported live customer issues.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Senior Software Engineer</span>
+        <span class="dates">Nov 2010 – Jul 2014</span>
+      </div>
+      <span class="org">Monkey Inferno</span> · <span class="loc">San Francisco</span>
+      <ul>
+        <li>Built <a href="https://www.cnet.com/tech/mobile/beerhunt-app-wants-you-to-have-fun-and-free-beer/">Beerhunt</a> — iOS beer social network (&ldquo;Foursquare for beer&rdquo;), launched at DEMO Mobile 2013.</li>
+        <li>Built <a href="https://techcrunch.com/2016/08/14/blab-shuts-down-but-founders-promise-new-product-on-the-way/">Blab</a> — 1-to-many group live-video social network.</li>
+        <li>Built <a href="https://www.charitywater.org/waterforward-project/">Water Forward</a> — viral pay-it-forward fundraising engine for charity: water.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Senior Software Engineer</span>
+        <span class="dates">Oct 2009 – Nov 2010</span>
+      </div>
+      <span class="org">Justin.tv</span>
+      <ul>
+        <li>Maintained and replaced legacy statistics system; implemented a log analytics framework on Hadoop Map/Reduce.</li>
+        <li>Created a real-time discrete event tracking system on MongoDB — presented at MongoSF.</li>
+        <li>Built Beancounter, a web front-end for visualizing time-series statistics, plus JavaScript libraries for user tracking and log generation.</li>
+        <li>Implemented an iPhone push notification provider system.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Senior Software Engineer</span>
+        <span class="dates">Mar 2006 – May 2009</span>
+      </div>
+      <span class="org">Coral8, Inc</span> <span class="loc">— merged with Aleri; <a href="https://www.dbms2.com/category/products-and-vendors/coral8/">acquired by Sybase (now SAP)</a></span>
+      <ul>
+        <li>Built core components of the Complex Event Processing engine in C++: high-speed data bus, pub/sub queuing, reliable persistent transport.</li>
+        <li>Designed and implemented SOAP/HTTP RPC layers, remote-database caching, and ACL-based client/server security.</li>
+        <li>Designed persistent data structures on a SQLite-based persistence engine; helped build the high-speed query execution engine.</li>
+        <li>Gave lectures on Coral8 internals to partners.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role">Executive Student Programmer</span>
+        <span class="dates">Sep 2004 – Mar 2006</span>
+      </div>
+      <span class="org">University of Wisconsin–Madison</span>
+      <ul>
+        <li>Supported public and private network access for hotel guests and UW staff.</li>
+        <li>Designed and optimized a marketing data warehouse; built ASP.NET front-ends and automated data synchronization from external stores.</li>
+        <li>Maintained VB/database financial applications and custom ASP/ASP.NET apps for student data and course enrollment.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Current Projects</h2>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role"><a href="https://github.com/lilco-dev">lilco-dev</a> — personal projects</span>
+      </div>
+      <ul>
+        <li><strong><a href="https://liluser.co">liluser</a></strong> — Agentic-user testing: AI agents that use your product like a real user, surfacing UX issues before humans hit them.</li>
+        <li><strong><a href="https://github.com/pgebheim/lilbox">lilbox</a></strong> — Instant, isolated Linux boxes: Rust CLI for booting hypervisor-isolated libkrun microVMs (~1–2s boot) on your own hardware, with tailnet/HTTPS publishing in one command — built for safely running untrusted and AI-generated code.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <span class="role"><a href="https://github.com/agent-rig/rig">rig</a> — Agent rig</span>
+      </div>
+      <ul>
+        <li>Copy-in kit of config-driven agent skills, agents, and CI templates — native to Claude Code, adaptable to any AGENTS.md-reading agent.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Talks &amp; Media</h2>
+    <ul>
+      <li><strong>"I Dismissed Web3 + AI, I Was Wrong"</strong> — ETHDenver 2026, AI stage (<a href="https://ethdenver.com/speakers/paul-gebheim/">speaker page</a>)
+        <!-- TODO: recording link — ETHDenver posts stage videos to youtube.com/c/ETHDenver --></li>
+      <li><strong>"Chainless Architectures"</strong> — SBC '25 Whitepaper Reading Sessions, with Brian Seong (<a href="https://arxiv.org/pdf/2505.22989">paper</a>)</li>
+      <li><strong>"AggLayer's Road to Mainnet"</strong> — AggSummit, with Gabriel Silva (<a href="https://polygon.technology/blog/aggsummit-recap-three-must-watch-videos-from-the-future-of-an-aggregated-industry">recap + video</a>)</li>
+      <li><strong>Forecast Foundation Keynote</strong> — Augur (<a href="https://www.youtube.com/watch?v=aW9E06CLLdM">video</a>)</li>
+      <li><strong>"Prediction &amp; Replication Markets"</strong> — Foresight Institute panel, with Robin Hanson, Martin Koeppelmann, and others (<a href="https://www.youtube.com/watch?v=lKEK2j0zrcY">video</a>)</li>
+      <li><strong>"Human Readable Security"</strong> — DWeb Camp 2022 lightning talk on Cadence (<a href="https://dwebcamp2022.sched.com/event/19o79/human-readable-security">session</a>)</li>
+      <li><strong>Full Stack Leader Podcast, Ep. 11</strong> — engineering leadership at Dapper Labs (<a href="https://www.wondermentapps.com/blog/full-stack-leader-podcast-episode-11-paul-gebheim-dapper-labs/">episode</a>)</li>
+      <li><strong>Open AGI Summit</strong> — Devconnect panel (<a href="https://luma.com/1p2sv719">event</a>)</li>
+      <!-- TODO: Espresso event at ETHDenver — couldn't find a public listing/recording; paste the link -->
+    </ul>
+  </section>
+
+  <section>
+    <h2>Education</h2>
+    <div class="job">
+      <div class="job-head">
+        <span class="role">B.S., Computer Science</span>
+        <span class="dates">2005</span>
+      </div>
+      <span class="org">University of Wisconsin–Madison</span>
+    </div>
+  </section>
+</main>
+</body>
+</html>
