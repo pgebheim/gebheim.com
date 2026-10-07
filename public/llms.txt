@@ -1,0 +1,14 @@
+# Paul Gebheim
+
+> Personal site and resume of Paul Gebheim, a product architect and engineering leader working on distributed systems, crypto infrastructure, and applied AI.
+
+## Site
+
+- [Home](https://gebheim.com): Resume and links
+- [Resume (JSON)](https://gebheim.com/resume.json): Machine-readable JSON Resume
+- [Colophon](https://gebheim.com/colophon.html): The tools that built this site
+
+## Elsewhere
+
+- [GitHub](https://github.com/pgebheim): Open-source work and personal projects
+- [LinkedIn](https://www.linkedin.com/in/pgebheim/): Professional profile

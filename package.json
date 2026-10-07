@@ -1,0 +1,7 @@
+{
+  "name": "gebheim-com",
+  "private": true,
+  "scripts": {
+    "test": "bun test"
+  }
+}
