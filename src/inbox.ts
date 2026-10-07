@@ -30,6 +30,13 @@ export class Inbox extends DurableObject {
         value TEXT NOT NULL
       )`,
     );
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS rate_limits (
+        key TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        "count" INTEGER NOT NULL
+      )`,
+    );
   }
 
   addContact(input: ContactInput): { received: boolean; id: string } {
@@ -56,6 +63,32 @@ export class Inbox extends DurableObject {
         since,
       )
       .toArray() as unknown as ContactRow[];
+  }
+
+  hitRateLimit(key: string, day: string): number {
+    // Lazy cleanup: the day is baked into each caller's key, so rows from
+    // earlier days can never be hit again and would grow the table without
+    // bound.
+    this.ctx.storage.sql.exec(`DELETE FROM rate_limits WHERE day < ?`, day);
+    const rows = this.ctx.storage.sql
+      .exec(
+        `INSERT INTO rate_limits (key, day, "count") VALUES (?, ?, 1)
+         ON CONFLICT(key) DO UPDATE SET
+           day = excluded.day,
+           "count" = CASE WHEN rate_limits.day = excluded.day
+                          THEN rate_limits."count" + 1 ELSE 1 END
+         RETURNING "count"`,
+        key,
+        day,
+      )
+      .toArray();
+    return Number(rows[0].count);
+  }
+
+  rateLimitRows(): { key: string; day: string; count: number }[] {
+    return this.ctx.storage.sql
+      .exec(`SELECT key, day, "count" FROM rate_limits ORDER BY key`)
+      .toArray() as unknown as { key: string; day: string; count: number }[];
   }
 
   kvGet(key: string): string | null {
