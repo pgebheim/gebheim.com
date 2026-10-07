@@ -1,8 +1,9 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = join(import.meta.dir, "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pub = (p: string) => join(root, "public", p);
 const read = (p: string) => readFileSync(pub(p), "utf8");
 

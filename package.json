@@ -1,7 +1,14 @@
 {
   "name": "gebheim-com",
   "private": true,
+  "type": "module",
   "scripts": {
-    "test": "bun test"
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "smol-toml": "1.9.0",
+    "vitest": "4.1.11",
+    "wrangler": "4.124.0"
   }
 }
