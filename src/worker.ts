@@ -1,6 +1,8 @@
 import { getAgentByName } from "agents";
 import { runAgentTurn } from "./agent";
+import { shapeDigest } from "./github-activity";
 import type { FlueAgent } from "./agent";
+import type { GithubEvent } from "./github-activity";
 import type { Inbox } from "./inbox";
 
 export { FlueAgent } from "./agent";
@@ -136,6 +138,35 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   return stub.fetch(forward);
 }
 
+const GITHUB_EVENTS_URL =
+  "https://api.github.com/users/pgebheim/events/public";
+const GITHUB_ACTIVITY_KEY = "context:github-activity";
+
+async function refreshGithubActivity(env: Env): Promise<void> {
+  try {
+    const res = await fetch(GITHUB_EVENTS_URL, {
+      headers: {
+        "User-Agent": "gebheim-com-worker",
+        Accept: "application/vnd.github+json",
+      },
+    });
+    if (!res.ok) {
+      console.error(`github activity refresh failed: HTTP ${res.status}`);
+      return;
+    }
+    const events = (await res.json()) as GithubEvent[];
+    const digest = shapeDigest(events);
+    const value = `${digest}\n\nfetched_at: ${new Date().toISOString()}`;
+    await env.Inbox.get(env.Inbox.idFromName("inbox")).kvSet(
+      GITHUB_ACTIVITY_KEY,
+      value,
+    );
+  } catch (error) {
+    // Leave the prior digest intact when the fetch fails.
+    console.error("github activity refresh failed", error);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -149,5 +180,8 @@ export default {
       return handleChat(request, env);
     }
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(_controller: unknown, env: Env): Promise<void> {
+    await refreshGithubActivity(env);
   },
 };

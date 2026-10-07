@@ -9,6 +9,7 @@ interface WranglerConfig {
   name: string;
   compatibility_date: string;
   assets: { directory: string };
+  triggers?: { crons?: string[] };
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -41,5 +42,11 @@ describe("wrangler.toml", () => {
     expect(JSON.stringify(config)).not.toMatch(
       /mailchannels|sendgrid|postmark|resend/i,
     );
+  });
+
+  // Issue #6 (self-updating-bio): the GitHub digest cron runs 06:00 UTC
+  // every Monday. No trigger exists yet; this fails until it lands.
+  test("schedules the GitHub digest cron for 06:00 UTC every Monday", () => {
+    expect(config.triggers?.crons).toEqual(["0 6 * * 1"]);
   });
 });

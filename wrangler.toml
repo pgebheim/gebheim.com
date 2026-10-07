@@ -24,3 +24,6 @@ class_name = "Inbox"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["FlueAgent", "Inbox"]
+
+[triggers]
+crons = ["0 6 * * 1"]
