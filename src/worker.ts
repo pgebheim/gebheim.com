@@ -18,6 +18,11 @@ export interface Env {
   FlueAgent: DurableObjectNamespace<FlueAgent>;
   Inbox: DurableObjectNamespace<Inbox>;
   INBOX_TOKEN: string;
+  X402_ENABLED?: string;
+  X402_PAY_TO?: string;
+  X402_VERIFIER?: {
+    verify(proof: string): Promise<string | null>;
+  };
 }
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -124,10 +129,102 @@ async function handleInbox(request: Request, env: Env): Promise<Response> {
 const SESSION_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const X402_ANON_LIMIT = 20;
+const X402_PAID_LIMIT = 200;
+// Placeholder network until the real payment network is decided.
+const X402_NETWORK = "base-sepolia";
+
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function paymentRequired(reason: string, payTo: string | undefined): Response {
+  // Fail closed while the wallet is undecided: no accepts entry, and the
+  // header reports network=undecided rather than aiming payers at the zero
+  // address.
+  const accepts = payTo
+    ? [
+        {
+          scheme: "exact",
+          network: X402_NETWORK,
+          asset: "USDC",
+          payTo,
+          maxAmountRequired: "1000",
+          resource: "gebheim.com agent access",
+          description: "Daily quota exceeded; pay per request via x402.",
+        },
+      ]
+    : [];
+  const network = payTo ? X402_NETWORK : "undecided";
+  return Response.json(
+    {
+      x402Version: 1,
+      error: reason,
+      accepts,
+    },
+    {
+      status: 402,
+      headers: {
+        "X-Payment-Required": `x402; scheme=exact; network=${network}`,
+      },
+    },
+  );
+}
+
+async function x402Gate(request: Request, env: Env): Promise<Response | null> {
+  if (env.X402_ENABLED !== "true") return null;
+  const day = new Date().toISOString().slice(0, 10);
+  const inbox = env.Inbox.get(env.Inbox.idFromName("inbox"));
+  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const payment = request.headers.get("X-Payment");
+
+  if (payment !== null) {
+    const verifier = env.X402_VERIFIER;
+    if (!verifier) {
+      return paymentRequired("payment verification unavailable", env.X402_PAY_TO);
+    }
+    let payer: string | null;
+    try {
+      payer = await verifier.verify(payment);
+    } catch (error) {
+      console.error("x402 verifier threw", error);
+      return new Response("payment verifier unavailable", { status: 503 });
+    }
+    if (typeof payer === "string" && payer.length > 0) {
+      const key = await sha256Hex(`x402-paid:${day}:${payer}`);
+      const count = await inbox.hitRateLimit(key, day);
+      if (count > X402_PAID_LIMIT)
+        return paymentRequired("paid quota exceeded", env.X402_PAY_TO);
+      return null;
+    }
+    // Malformed or replayed proof: consume one anonymous count, fail closed.
+    const anonKey = await sha256Hex(`x402-anon:${day}:${ip}`);
+    await inbox.hitRateLimit(anonKey, day);
+    return paymentRequired("invalid payment proof", env.X402_PAY_TO);
+  }
+
+  const key = await sha256Hex(`x402-anon:${day}:${ip}`);
+  const count = await inbox.hitRateLimit(key, day);
+  if (count > X402_ANON_LIMIT)
+    return paymentRequired("anonymous quota exceeded", env.X402_PAY_TO);
+  return null;
+}
+
 async function handleChat(request: Request, env: Env): Promise<Response> {
   if ((request.headers.get("Upgrade") ?? "").toLowerCase() !== "websocket") {
     return new Response("Expected a WebSocket upgrade", { status: 426 });
   }
+  // Gate every upgrade: the server never records issued sessions, and the
+  // widget mints flue_session client-side, so a cookie proves nothing. A
+  // reconnect consumes from the anonymous bucket like a new session.
+  const gated = await x402Gate(request, env);
+  if (gated) return gated;
   const cookie = parseCookies(request.headers.get("Cookie")).get("flue_session");
   const existing = cookie && SESSION_ID_RE.test(cookie) ? cookie : undefined;
   const sessionId = existing ?? crypto.randomUUID();
@@ -171,6 +268,8 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/agent" && request.method === "POST") {
+      const gated = await x402Gate(request, env);
+      if (gated) return gated;
       return handleAgentRpc(request, env);
     }
     if (url.pathname === "/agent/inbox" && request.method === "GET") {
