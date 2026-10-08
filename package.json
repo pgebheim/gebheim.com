@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
     "test": "vitest run"
   },
   "devDependencies": {

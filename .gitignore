@@ -1,6 +1,16 @@
 resume.private.html
 node_modules/
+dist/
 .dev.vars
 .wrangler/
+
+# terraform (infra/) — local state and provider cache stay out of git
+.terraform/
+*.tfstate
+*.tfstate.*
+# tfvars auto-load (terraform.tfvars, *.auto.tfvars) and plan -out files both
+# embed the plaintext inbox token; never commit either.
+*.tfvars
+*.tfplan
 
 .rig/state/
