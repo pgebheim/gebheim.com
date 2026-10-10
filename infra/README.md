@@ -22,13 +22,17 @@ human runs `apply`.
 ```sh
 bun install
 bun run build        # wrangler deploy --dry-run --outdir dist → dist/worker.js
-export CLOUDFLARE_API_TOKEN=...   # scoped token, see above
-export TF_VAR_account_id=...      # 32-hex account ID
-export TF_VAR_inbox_token=...     # inbox bearer token (sensitive variable)
+source ~/.config/gebheim/deploy.env   # scoped tokens + backend creds (never commit)
 terraform -chdir=infra init
 terraform -chdir=infra plan
 terraform -chdir=infra apply
 ```
+
+`deploy.env` provides `CLOUDFLARE_API_TOKEN` (scoped deploy token),
+`TF_VAR_account_id`, and the backend's `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` (derived from the scoped R2 state token). Set
+`TF_VAR_inbox_token` separately (`openssl rand -hex 32`) — it is the inbox
+bearer token, deliberately not stored in `deploy.env`.
 
 `bun run build` must run before `validate`/`plan`/`apply`: the script resource
 reads `dist/worker.js` via `content_file`/`content_sha256`, and terraform
@@ -45,11 +49,10 @@ evaluates `filesha256` eagerly.
 
 ## State
 
-Backend is `local`: state lands in `infra/terraform.tfstate`, which is
-gitignored. The state file contains the PLAINTEXT INBOX_TOKEN — the
-`secret_text` binding hides it from CLI output, not from state. Do not copy,
-share, or back up the state file outside this machine. Single-operator
-applies work as-is. When more than one machine needs to apply, migrate to a
-Cloudflare R2 bucket via the S3-compatible backend (which supports encryption)
-— replace the `backend "local"` block in `versions.tf` and re-init
-with `-migrate-state`.
+Backend is the R2 bucket `gebheim-com-tf` via the S3-compatible backend
+credentials from the environment, not on disk in the repo. State contains the
+PLAINTEXT INBOX_TOKEN — the `secret_text` binding hides it from CLI output,
+not from state. The bucket is private and the state token is scoped to R2
+storage only; treat anyone with those creds as holding the inbox token.
+Local `terraform.tfstate*` files remain gitignored for anyone running a local
+backend override.

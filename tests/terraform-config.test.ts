@@ -54,8 +54,14 @@ describe("infra/ terraform layout", () => {
     expect(hcl).toMatch(/version\s*=\s*"~>\s*5\.27"/);
   });
 
-  test("declares a backend block (local by default)", () => {
-    expect(hcl).toMatch(/backend\s+"local"/);
+  test("declares the R2 (S3-compatible) backend for shared state", () => {
+    expect(hcl).toMatch(/backend\s+"s3"/);
+    expect(hcl).toMatch(/bucket\s*=\s*"gebheim-com-tf"/);
+    expect(hcl).toMatch(/r2\.cloudflarestorage\.com/);
+    // R2 is not AWS: region/credential/account probing must be skipped.
+    expect(hcl).toMatch(/skip_region_validation\s*=\s*true/);
+    expect(hcl).toMatch(/skip_credentials_validation\s*=\s*true/);
+    expect(hcl).toMatch(/skip_requesting_account_id\s*=\s*true/);
   });
 });
 
