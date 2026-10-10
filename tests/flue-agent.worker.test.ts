@@ -367,6 +367,34 @@ describe("POST /agent (A2A JSON-RPC 2.0)", () => {
       message: "Let us collaborate",
     });
   });
+
+  // Deploy-verified bug: the tool loop forwarded the model's tool_calls
+  // verbatim ({name, arguments}), but Workers AI validates requests against
+  // the OpenAI chat schema — tool_calls need id/type/function, and tool
+  // results need tool_call_id. The AI mock accepts any shape, so only this
+  // pin catches the regression (production returned -32603 / AiError 8007).
+  it("sends the tool-loop follow-up in OpenAI tool_calls shape", async () => {
+    await messageSend("RUN_CONTACT_PAUL please");
+    expect(mockAI.calls.length).toBe(2);
+    const messages = mockAI.calls[1].payload.messages as Record<
+      string,
+      unknown
+    >[];
+    const assistant = messages.find(
+      (m) => m.role === "assistant" && Array.isArray(m.tool_calls),
+    ) as { tool_calls: Record<string, unknown>[] };
+    expect(assistant).toBeDefined();
+    const call = assistant.tool_calls[0];
+    expect(call.id).toEqual(expect.any(String));
+    expect(call.type).toBe("function");
+    const fn = call.function as { name: string; arguments: unknown };
+    expect(fn.name).toBe("contact_paul");
+    expect(typeof fn.arguments).toBe("string"); // JSON-encoded
+    const toolMsg = messages.find((m) => m.role === "tool") as {
+      tool_call_id?: string;
+    };
+    expect(toolMsg.tool_call_id).toBe(call.id);
+  });
 });
 
 describe("GET /agent/inbox", () => {
