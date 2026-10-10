@@ -9,8 +9,20 @@ terraform {
     }
   }
 
-  # Local backend by default: state lives in infra/terraform.tfstate (gitignored).
-  # Upgrade path for shared state is a Cloudflare R2 bucket via the S3-compatible
-  # backend — swap this block when more than one machine applies.
-  backend "local" {}
+  # State lives in the R2 bucket gebheim-com-tf (S3-compatible backend).
+  # Credentials come from the environment (see infra/README.md):
+  #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY — derived from the scoped
+  #   "gebheim-com-terraform-state" API token (id + sha256(value)).
+  backend "s3" {
+    bucket = "gebheim-com-tf"
+    key    = "terraform.tfstate"
+    endpoints = {
+      s3 = "https://16626364480ee79b98ed6d31bea37e8c.r2.cloudflarestorage.com"
+    }
+    region                      = "auto"
+    skip_region_validation      = true
+    skip_credentials_validation = true
+    skip_requesting_account_id  = true
+    skip_metadata_api_check     = true
+  }
 }
