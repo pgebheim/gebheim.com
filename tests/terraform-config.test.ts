@@ -240,18 +240,19 @@ describe("package.json build script", () => {
 // record so the redirect rule has traffic to match, and a zone redirect
 // ruleset issues the 301.
 describe("www redirect", () => {
-  test("www is a proxied CNAME to the apex", () => {
-    expect(hcl).toMatch(/resource\s+"cloudflare_dns_record"\s+"www"/);
-    expect(hcl).toMatch(/name\s*=\s*"www"/);
-    expect(hcl).toMatch(/content\s*=\s*"gebheim\.com"/);
-    expect(hcl).toMatch(/proxied\s*=\s*true/);
+  test("www attaches to the Worker as a second custom domain", () => {
+    // a proxied CNAME to the apex does not route to the Worker (522) —
+    // Workers custom domains match on exact hostname, so www needs its own
+    expect(hcl).toMatch(
+      /resource\s+"cloudflare_workers_custom_domain"\s+"www"\s*\{[^}]*hostname\s*=\s*"www\.gebheim\.com"/is,
+    );
   });
 
   test("a zone redirect ruleset 301s www traffic to the apex", () => {
     expect(hcl).toMatch(/resource\s+"cloudflare_ruleset"/);
     expect(hcl).toMatch(/phase\s*=\s*"http_request_dynamic_redirect"/);
     expect(hcl).toMatch(/status_code\s*=\s*301/);
-    expect(hcl).toMatch(/http\.host\s+eq\s+["']www\.gebheim\.com["']/);
+    expect(hcl).toMatch(/http\.host\s+eq\s+\\?["']www\.gebheim\.com\\?["']/);
     expect(hcl).toMatch(/https:\/\/gebheim\.com/);
     // deep links survive the redirect
     expect(hcl).toMatch(/http\.request\.uri\.path/);
