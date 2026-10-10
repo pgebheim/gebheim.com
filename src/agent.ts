@@ -22,6 +22,7 @@ interface ChatMessage {
   content: string;
   name?: string;
   tool_calls?: unknown;
+  tool_call_id?: string;
 }
 
 function inboxStub(env: Env): DurableObjectStub<Inbox> {
@@ -161,12 +162,25 @@ export async function runAgentTurn(
   for (let step = 0; step < 4; step++) {
     const calls = result?.tool_calls ?? [];
     if (calls.length === 0) break;
-    messages.push({ role: "assistant", content: "", tool_calls: calls });
-    for (const call of calls) {
-      const output = await executeTool(call.name, call.arguments ?? {}, { env });
+    // Workers AI returns tool calls as {name, arguments} but validates
+    // follow-up requests against the OpenAI chat schema: each call needs
+    // id + type + function, and each tool result references that id.
+    const shaped = calls.map((call, i) => ({
+      id: `call_${step}_${i}`,
+      type: "function",
+      function: {
+        name: call.name,
+        arguments: JSON.stringify(call.arguments ?? {}),
+      },
+    }));
+    messages.push({ role: "assistant", content: "", tool_calls: shaped });
+    for (let i = 0; i < calls.length; i++) {
+      const output = await executeTool(calls[i].name, calls[i].arguments ?? {}, {
+        env,
+      });
       messages.push({
         role: "tool",
-        name: call.name,
+        tool_call_id: shaped[i].id,
         content: typeof output === "string" ? output : JSON.stringify(output),
       });
     }
@@ -204,6 +218,8 @@ export class FlueAgent extends Agent<Env> {
     this.ensureSchema();
     const rows = this.ctx.storage.sql
       .exec("SELECT role, content FROM messages ORDER BY rowid ASC")
+      // SAFETY: the messages table is created by ensureSchema() above with
+      // exactly these two TEXT columns, so the row shape is fixed.
       .toArray() as unknown as { role: string; content: string }[];
     return rows.map((row) => ({ role: row.role, content: row.content }));
   }
