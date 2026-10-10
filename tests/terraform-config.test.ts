@@ -168,6 +168,30 @@ describe("cron trigger", () => {
   });
 });
 
+// Issue #8: the Worker serves the apex via a custom domain. The zone already
+// exists and DNS sits on Cloudflare nameservers, so terraform only attaches
+// the hostname to the script — the provider creates the edge record itself.
+describe("custom domain (#8)", () => {
+  test("manages the custom domain as a terraform resource", () => {
+    expect(hcl).toMatch(/resource\s+"cloudflare_workers_custom_domain"/);
+  });
+
+  test("attaches exactly gebheim.com to the workers script", () => {
+    expect(hcl).toMatch(/hostname\s*=\s*"gebheim\.com"/);
+    // service references the script resource (terraform-correct); the
+    // script's own script_name pin already ties it to wrangler.toml.
+    expect(hcl).toMatch(
+      /service\s*=\s*cloudflare_workers_script\.[a-z0-9_]+\.(script_name|name)/,
+    );
+  });
+
+  test("references the zone through a variable with the real zone id as default", () => {
+    expect(hcl).toMatch(/variable\s+"zone_id"/);
+    expect(hcl).toMatch(/default\s*=\s*"[0-9a-f]{32}"/);
+    expect(hcl).toMatch(/zone_id\s*=\s*var\.zone_id/);
+  });
+});
+
 describe("secrets", () => {
   test("declares the inbox token as a sensitive variable", () => {
     expect(hcl).toMatch(
