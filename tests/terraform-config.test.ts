@@ -234,3 +234,27 @@ describe("package.json build script", () => {
     expect(pkg.scripts?.build ?? "").toMatch(/dist/);
   });
 });
+
+// www → apex redirect, terraform-managed. The stale www A record (Namecheap
+// forward) and nc A record were deleted out-of-band; www needs a proxied
+// record so the redirect rule has traffic to match, and a zone redirect
+// ruleset issues the 301.
+describe("www redirect", () => {
+  test("www is a proxied CNAME to the apex", () => {
+    expect(hcl).toMatch(/resource\s+"cloudflare_dns_record"\s+"www"/);
+    expect(hcl).toMatch(/name\s*=\s*"www"/);
+    expect(hcl).toMatch(/content\s*=\s*"gebheim\.com"/);
+    expect(hcl).toMatch(/proxied\s*=\s*true/);
+  });
+
+  test("a zone redirect ruleset 301s www traffic to the apex", () => {
+    expect(hcl).toMatch(/resource\s+"cloudflare_ruleset"/);
+    expect(hcl).toMatch(/phase\s*=\s*"http_request_dynamic_redirect"/);
+    expect(hcl).toMatch(/status_code\s*=\s*301/);
+    expect(hcl).toMatch(/http\.host\s+eq\s+["']www\.gebheim\.com["']/);
+    expect(hcl).toMatch(/https:\/\/gebheim\.com/);
+    // deep links survive the redirect
+    expect(hcl).toMatch(/http\.request\.uri\.path/);
+    expect(hcl).toMatch(/preserve_query_string\s*=\s*true/);
+  });
+});
