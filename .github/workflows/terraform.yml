@@ -1,0 +1,54 @@
+name: terraform
+
+on:
+  pull_request:
+    paths: ["infra/**", "src/**", "public/**", "package.json", "wrangler.toml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", "src/**", "public/**", "package.json", "wrangler.toml"]
+  workflow_dispatch:
+
+# One terraform run at a time — applies must never overlap.
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_ACCOUNT_ID: ${{ secrets.TF_VAR_ACCOUNT_ID }}
+      TF_VAR_INBOX_TOKEN: ${{ secrets.TF_VAR_INBOX_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      TF_INPUT: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - run: bun install
+
+      # Builds dist/worker.js; terraform reads it via content_file.
+      - run: bun run build
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: "1.15.9"
+
+      - run: terraform -chdir=infra init
+
+      - run: terraform -chdir=infra fmt -check
+
+      - run: terraform -chdir=infra validate
+
+      - run: terraform -chdir=infra plan -out=tfplan
+
+      - run: terraform -chdir=infra apply -auto-approve tfplan
+        if: >
+          github.ref == 'refs/heads/main'
+          && github.event_name != 'pull_request'
