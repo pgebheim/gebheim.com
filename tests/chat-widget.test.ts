@@ -32,6 +32,13 @@ describe("chat widget in public/index.html", () => {
     expect(html).not.toMatch(/tel:/i);
     expect(html).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
   });
+
+  test("exposes the persona picker with every persona", () => {
+    const html = readIndex();
+    for (const p of ["default", "vampire", "robot", "salesperson"]) {
+      expect(html).toContain(`data-persona="${p}"`);
+    }
+  });
 });
 
 describe("public/chat.js", () => {

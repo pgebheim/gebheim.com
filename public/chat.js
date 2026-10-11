@@ -1,4 +1,4 @@
-// Flue chat widget — zero-dependency, same-origin WebSocket to /api/chat.
+// Page chat widget — zero-dependency, same-origin WebSocket to /api/chat.
 (function () {
   "use strict";
 
@@ -11,6 +11,40 @@
   var form = document.getElementById("chat-form");
   var input = document.getElementById("chat-input");
   var send = document.getElementById("chat-send");
+
+  // Persona picker: the choice rides along with each message frame and is
+  // remembered in localStorage; the server falls back to the default voice
+  // for anything it doesn't recognize.
+  var persona = "default";
+  try {
+    persona = localStorage.getItem("page_persona") || "default";
+  } catch {
+    // storage can be unavailable (private mode); the default voice is fine
+  }
+  var picker = document.getElementById("persona-picker");
+  if (picker) {
+    var buttons = picker.querySelectorAll("[data-persona]");
+    var select = function (id) {
+      persona = id;
+      try {
+        localStorage.setItem("page_persona", id);
+      } catch {}
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].setAttribute(
+          "aria-pressed",
+          buttons[i].getAttribute("data-persona") === id ? "true" : "false",
+        );
+      }
+    };
+    for (var i = 0; i < buttons.length; i++) {
+      (function (btn) {
+        btn.addEventListener("click", function () {
+          select(btn.getAttribute("data-persona"));
+        });
+      })(buttons[i]);
+    }
+    select(persona);
+  }
 
   // Runs before the socket connects: the worker has no server-side mint, so
   // the client mints the session UUID itself. The worker resumes any valid
@@ -126,7 +160,9 @@
     }
     pending = addMessage("user", text, true);
     try {
-      socket.send(JSON.stringify({ type: "message", "text": text }));
+      socket.send(
+        JSON.stringify({ type: "message", "text": text, persona: persona }),
+      );
     } catch {
       fail();
       return;
