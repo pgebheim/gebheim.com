@@ -47,10 +47,12 @@ resource "cloudflare_workers_script" "gebheim_com" {
     },
   ]
 
-  # Same-sqlite-class migration matching wrangler.toml [[migrations]]; this is
-  # what creates the Durable Object namespaces the bindings above reference.
-  migrations = {
-    new_tag            = "v1"
-    new_sqlite_classes = ["FlueAgent", "Inbox"]
-  }
+  # No migrations block: the v1 tag and both SQLite classes are already
+  # applied. The Workers API treats migrations as one-way and rejects an
+  # update whose migrations carry an empty/old tag ("Actor migration tag
+  # precondition failed"), and the v5 provider cannot send the tag on update
+  # (cloudflare/terraform-provider-cloudflare#5701). Restore a migrations
+  # attribute (new_tag + new_sqlite_classes) only when a NEW class or rename
+  # actually needs a migration, and remove it again once applied.
+  # wrangler.toml keeps its [[migrations]] as the record.
 }
