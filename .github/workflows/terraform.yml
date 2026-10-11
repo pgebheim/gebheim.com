@@ -2,10 +2,30 @@ name: terraform
 
 on:
   pull_request:
-    paths: ["infra/**", "src/**", "public/**", "package.json", "wrangler.toml"]
+    # The workflow must run on changes to itself, or a workflow-only fix
+    # silently produces no run (PR #31 merged with zero CI).
+    paths:
+      [
+        "infra/**",
+        "src/**",
+        "public/**",
+        "package.json",
+        "bun.lock",
+        "wrangler.toml",
+        ".github/workflows/terraform.yml",
+      ]
   push:
     branches: [main]
-    paths: ["infra/**", "src/**", "public/**", "package.json", "wrangler.toml"]
+    paths:
+      [
+        "infra/**",
+        "src/**",
+        "public/**",
+        "package.json",
+        "bun.lock",
+        "wrangler.toml",
+        ".github/workflows/terraform.yml",
+      ]
   workflow_dispatch:
 
 # One terraform run at a time — applies must never overlap.
