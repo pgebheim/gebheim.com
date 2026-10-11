@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Paul Gebheim</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #f5eddf;
+    --ink: #24221e;
+    --muted: #6d665d;
+    --berry: #b93b67;
+    --berry-dark: #76203f;
+    --gold: #d49c46;
+    --line: rgba(36, 34, 30, 0.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    background: var(--paper); color: var(--ink);
+    line-height: 1.55; margin: 0; font-size: 16px;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: 0.13;
+    background-image: radial-gradient(rgba(36, 34, 30, 0.32) 0.6px, transparent 0.6px);
+    background-size: 7px 7px; mix-blend-mode: multiply;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  header h1 {
+    margin: 0 0 .4rem; font-size: clamp(2.2rem, 6vw, 3.5rem);
+    letter-spacing: -0.04em; line-height: 1.02;
+  }
+  header .tagline { color: var(--muted); margin: 0 0 .6rem; font-size: 1.05rem; font-style: italic; }
+  h2 {
+    color: var(--berry-dark);
+    font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-transform: uppercase; letter-spacing: .11em;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: .3rem; margin: 2.25rem 0 1rem;
+  }
+  a { color: var(--berry-dark); }
+  ul { margin: .4rem 0 0; padding-left: 1.2rem; }
+  li { margin-bottom: .25rem; }
+  footer { margin-top: 3rem; font-size: .88rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Privacy Policy</h1>
+    <p class="tagline">What this site collects, and what it never will.</p>
+  </header>
+
+  <section>
+    <h2>The short version</h2>
+    <p>No analytics, no trackers, no ads, no third-party cookies, no selling
+    data. The only things stored are the conversations you start and the
+    messages you ask the agent to pass along.</p>
+  </section>
+
+  <section>
+    <h2>What is stored</h2>
+    <ul>
+      <li><strong>Chat conversations.</strong> Messages you send the on-site
+      agent are stored server-side under a random session id so your history
+      can replay when you return. Ask for a session to be deleted via the
+      contact form and it will be.</li>
+      <li><strong>Contact messages.</strong> When you ask the agent to send
+      Paul a message, the name, contact detail, and message you provide are
+      stored until read.</li>
+      <li><strong>Rate-limit counters.</strong> To prevent abuse, the site
+      keeps a daily counter keyed by a SHA-256 hash of your IP address. The
+      raw IP is never stored, and counters are deleted the next day.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Cookies</h2>
+    <p>One first-party cookie, <code>flue_session</code>: a random UUID your
+    own browser generates, used solely to resume your chat session. It is not
+    sent anywhere else and tracks nothing.</p>
+  </section>
+
+  <section>
+    <h2>Processors</h2>
+    <ul>
+      <li><strong>Cloudflare</strong> hosts the site and runs the agent.
+      Chat messages are processed by a Llama model on Cloudflare Workers AI
+      to generate replies.</li>
+      <li><strong>GitHub</strong> — the agent's "recent activity" comes from
+      the operator's public GitHub events feed. This is public data about
+      the site operator, not about you.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Your choices</h2>
+    <p>Clear your cookies to start a fresh session. To have a conversation
+    or contact message deleted, use the contact form on the
+    <a href="/">home page</a> and say so — this site publishes no email
+    address to scrape.</p>
+  </section>
+
+  <section>
+    <h2>Changes</h2>
+    <p>This policy is versioned with the site itself; the history is public
+    in the <a href="https://github.com/pgebheim/gebheim.com">source
+    repository</a>. Last updated: 2026-10-10.</p>
+  </section>
+
+  <footer>
+    <a href="/">Back to the resume</a> · <a href="/tos">Terms of Service</a>
+  </footer>
+</main>
+</body>
+</html>
