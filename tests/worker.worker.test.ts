@@ -20,6 +20,16 @@ describe("worker static file serving", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
   });
 
+  it("GET /.well-known/agent-card.json serves the same card (A2A 0.3.0 name)", async () => {
+    const legacy = await SELF.fetch("https://gebheim.com/.well-known/agent.json");
+    const current = await SELF.fetch(
+      "https://gebheim.com/.well-known/agent-card.json",
+    );
+    expect(current.status).toBe(200);
+    expect(current.headers.get("content-type")).toContain("application/json");
+    expect(await current.text()).toBe(await legacy.text());
+  });
+
   it("GET /nope returns 404", async () => {
     const res = await SELF.fetch("https://gebheim.com/nope");
     expect(res.status).toBe(404);

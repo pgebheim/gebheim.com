@@ -285,6 +285,13 @@ export default {
     if (url.pathname === "/agent/inbox" && request.method === "GET") {
       return handleInbox(request, env);
     }
+    // A2A 0.3.0 renamed the well-known card from agent.json to
+    // agent-card.json; serve the same asset under both names.
+    if (url.pathname === "/.well-known/agent-card.json") {
+      return env.ASSETS.fetch(
+        new Request(new URL("/.well-known/agent.json", url), request),
+      );
+    }
     if (url.pathname === "/api/chat") {
       return handleChat(request, env);
     }
