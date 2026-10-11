@@ -1,19 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SELF, env } from "cloudflare:test";
 import resumeRaw from "../public/resume.json?raw";
+import { installMockAI, envRecord, type AiCall } from "./helpers.workers";
 
 /**
- * RED suite for issue #4 (flue-agent).
- *
- * The implementation does not exist yet: src/agent.ts (FlueAgent DO, tools),
- * src/inbox.ts (Inbox DO), and the /agent, /agent/inbox, /api/chat routes in
- * src/worker.ts are all missing. Every test in this file fails until they land.
+ * Contract suite for issue #4 (flue-agent): the FlueAgent/Inbox DOs and the
+ * /agent (A2A JSON-RPC), /agent/inbox, and /api/chat routes.
  *
  * Contract decisions pinned here:
- * - src/agent.ts exports `tools` (a record keyed by tool name) and
- *   `executeTool(name, args, { env })`. Each tool's execute takes
- *   `(args, { env })` and returns a string, except contact_paul which returns
- *   `{ received: boolean, id: string }`.
+ * - src/agent.ts exports `tools` (a record keyed by tool name). Each tool's
+ *   execute takes `(args, { env })` and returns a string, except contact_paul
+ *   which returns `{ received: boolean, id: string }`.
  * - env.AI is a Workers AI binding called as env.AI.run(model, payload) with a
  *   Llama 3.x model id; tests replace the binding with a recording mock.
  * - GET /agent/inbox requires `Authorization: Bearer ${env.INBOX_TOKEN}` and
@@ -29,65 +26,41 @@ const resume = JSON.parse(resumeRaw) as {
 const MOCK_TEXT_REPLY = "MOCK_REPLY: Paul Gebheim works at Sei Labs";
 const MOCK_TOOL_FOLLOWUP_REPLY = "MOCK_REPLY: done, Paul Gebheim has it";
 
-interface AiMessage {
-  role: string;
-  content?: unknown;
-}
-
-interface AiCall {
-  model: string;
-  payload: {
-    messages?: AiMessage[];
-    tools?: { name?: string; function?: { name?: string } }[];
-  };
-}
-
-interface MockAi {
-  calls: AiCall[];
-}
-
 /**
- * Installs a recording mock as env.AI. The mock never emits model output worth
- * asserting on; tests assert the request shape recorded in `calls` instead.
- * Canned replies carry the MOCK_REPLY marker so socket/HTTP round-trips have a
- * deterministic string to look for.
+ * Canned model behavior for the recording mock (tests/helpers.workers.ts).
+ * Trigger substrings in the user text select the turn-1 response; any
+ * follow-up call (last message is a tool result) gets the marker reply.
  */
-function installMockAI(): MockAi {
-  const mock: MockAi = { calls: [] };
-  const ai = {
-    run: async (model: string, payload: AiCall["payload"]) => {
-      mock.calls.push({ model, payload: JSON.parse(JSON.stringify(payload)) });
-      const messages = payload.messages ?? [];
-      const last = messages[messages.length - 1];
-      // Second turn of a tool-use loop: the last message is the tool result.
-      if (last && last.role !== "user") {
-        return { response: MOCK_TOOL_FOLLOWUP_REPLY };
-      }
-      const text = typeof last?.content === "string" ? last.content : "";
-      if (text.includes("RUN_CONTACT_PAUL")) {
-        return {
-          tool_calls: [
-            {
-              name: "contact_paul",
-              arguments: {
-                name: "Ada Lovelace",
-                contact: "ada@example.com",
-                message: "Let us collaborate",
-              },
-            },
-          ],
-        };
-      }
-      return { response: MOCK_TEXT_REPLY };
-    },
-  };
-  (env as unknown as Record<string, unknown>).AI = ai;
-  return mock;
+function respondCanned(payload: AiCall["payload"]): unknown {
+  const messages = payload.messages ?? [];
+  const last = messages[messages.length - 1];
+  if (last && last.role !== "user") {
+    return { response: MOCK_TOOL_FOLLOWUP_REPLY };
+  }
+  const text = typeof last?.content === "string" ? last.content : "";
+  if (text.includes("RUN_CONTACT_PAUL")) {
+    return {
+      tool_calls: [
+        {
+          name: "contact_paul",
+          arguments: {
+            name: "Ada Lovelace",
+            contact: "ada@example.com",
+            message: "Let us collaborate",
+          },
+        },
+      ],
+    };
+  }
+  if (text.includes("RUN_UNKNOWN_TOOL")) {
+    return { tool_calls: [{ name: "no_such_tool", arguments: {} }] };
+  }
+  return { response: MOCK_TEXT_REPLY };
 }
 
-let mockAI: MockAi;
+let mockAI: { calls: AiCall[] };
 beforeEach(() => {
-  mockAI = installMockAI();
+  mockAI = installMockAI(respondCanned);
 });
 
 const importAgent = () => import("../src/agent");
@@ -221,10 +194,19 @@ describe("agent tools", () => {
     }
   });
 
-  it("executeTool returns a structured error for an unknown tool", async () => {
-    const { executeTool } = await importAgent();
-    const result = await executeTool("no_such_tool", {}, { env });
-    expect(result).toMatchObject({ error: { code: "unknown_tool" } });
+  it("an unknown tool call reaches the model as a structured error", async () => {
+    await messageSend("RUN_UNKNOWN_TOOL please");
+    expect(mockAI.calls.length).toBe(2);
+    const messages = mockAI.calls[1].payload.messages as Record<
+      string,
+      unknown
+    >[];
+    const toolMsg = messages.find((m) => m.role === "tool") as {
+      content?: string;
+    };
+    expect(JSON.parse(toolMsg.content ?? "")).toMatchObject({
+      error: { code: "unknown_tool" },
+    });
   });
 
   it("contact_paul generates an idempotency UUID when none is given", async () => {
@@ -304,7 +286,16 @@ describe("POST /agent (A2A JSON-RPC 2.0)", () => {
     const body = await res.json();
     expect(body.jsonrpc).toBe("2.0");
     expect(body.id).toBe("rpc-state");
+    // A2A 0.3.0 Task shape, matching public/.well-known/agent.json's
+    // protocolVersion claim.
+    expect(body.result.kind).toBe("task");
+    expect(body.result.id).toBe("msg-rpc-state");
+    expect(body.result.contextId).toBe("msg-rpc-state");
     expect(body.result.status.state).toBe("completed");
+    const message = body.result.status.message;
+    expect(message.kind).toBe("message");
+    expect(message.messageId).toEqual(expect.any(String));
+    expect(message.role).toBe("agent");
   });
 
   it("the completed Task carries a text part mentioning a resume fact", async () => {
@@ -322,7 +313,7 @@ describe("POST /agent (A2A JSON-RPC 2.0)", () => {
   });
 
   it("returns -32603 when the model call throws", async () => {
-    (env as unknown as Record<string, unknown>).AI = {
+    envRecord().AI = {
       run: async () => {
         throw new Error("AI unavailable");
       },
@@ -489,12 +480,10 @@ describe("GET /agent/inbox", () => {
 });
 
 describe("GET /api/chat (WebSocket)", () => {
-  it("upgrades and assigns a flue_session cookie", async () => {
+  it("upgrades without a set-cookie (client-side mint)", async () => {
     const res = await upgradeChat();
     expect(res.status).toBe(101);
-    const cookie = res.headers.get("set-cookie") ?? "";
-    expect(cookie).toContain("flue_session=");
-    expect(cookie).toContain("Secure");
+    expect(res.headers.get("set-cookie")).toBeNull();
     const ws = res.webSocket!;
     ws.accept();
     ws.close();
@@ -513,12 +502,11 @@ describe("GET /api/chat (WebSocket)", () => {
   });
 
   it("replays history when reconnecting with the same session cookie", async () => {
-    const first = await upgradeChat();
+    // The widget mints the cookie (chat.js ensureSession); the worker only
+    // resumes whatever valid UUID arrives.
+    const cookie = `flue_session=${crypto.randomUUID()}`;
+    const first = await upgradeChat({ Cookie: cookie });
     expect(first.status).toBe(101);
-    const cookie = /flue_session=[^;]+/.exec(
-      first.headers.get("set-cookie") ?? "",
-    )?.[0];
-    expect(cookie).toBeDefined();
     const ws1 = first.webSocket!;
     const firstIncoming = collect(ws1);
     ws1.accept();
@@ -526,7 +514,7 @@ describe("GET /api/chat (WebSocket)", () => {
     await firstIncoming.waitFor((m) => m.includes("MOCK_REPLY"));
     ws1.close();
 
-    const second = await upgradeChat({ Cookie: cookie! });
+    const second = await upgradeChat({ Cookie: cookie });
     expect(second.status).toBe(101);
     const ws2 = second.webSocket!;
     const replay = collect(ws2);
@@ -536,13 +524,10 @@ describe("GET /api/chat (WebSocket)", () => {
     ws2.close();
   });
 
-  it("ignores a malformed flue_session cookie and issues a fresh session", async () => {
+  it("ignores a malformed flue_session cookie", async () => {
     const res = await upgradeChat({ Cookie: "flue_session=not-a-uuid" });
     expect(res.status).toBe(101);
-    const cookie = res.headers.get("set-cookie") ?? "";
-    expect(cookie).toMatch(
-      /flue_session=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
-    );
+    expect(res.headers.get("set-cookie")).toBeNull();
     const ws = res.webSocket!;
     ws.accept();
     ws.close();

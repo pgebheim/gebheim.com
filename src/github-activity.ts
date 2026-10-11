@@ -5,6 +5,10 @@ export interface GithubEvent {
   created_at?: string;
 }
 
+// Inbox kv key for the weekly digest, shared by the cron writer (worker.ts),
+// the prompt reader (agent.ts), and tests — one literal, no silent drift.
+export const GITHUB_ACTIVITY_KEY = "context:github-activity";
+
 const MAX_ITEMS = 30;
 const MAX_LENGTH = 2048;
 const MAX_AGE_MS = 7 * 86_400_000;

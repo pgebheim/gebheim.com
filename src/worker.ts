@@ -1,6 +1,6 @@
 import { getAgentByName } from "agents";
 import { runAgentTurn } from "./agent";
-import { shapeDigest } from "./github-activity";
+import { GITHUB_ACTIVITY_KEY, shapeDigest } from "./github-activity";
 import type { FlueAgent } from "./agent";
 import type { GithubEvent } from "./github-activity";
 import type { Inbox } from "./inbox";
@@ -97,14 +97,26 @@ async function handleAgentRpc(request: Request, env: Env): Promise<Response> {
   } catch {
     return jsonrpcError(body.id ?? null, -32603, "Internal error");
   }
+  const taskId =
+    typeof message?.messageId === "string"
+      ? message.messageId
+      : crypto.randomUUID();
   return Response.json({
     jsonrpc: "2.0",
     id: body.id ?? null,
     result: {
-      id: typeof message?.messageId === "string" ? message.messageId : crypto.randomUUID(),
+      // A2A 0.3.0 Task shape, as advertised by public/.well-known/agent.json
+      kind: "task",
+      id: taskId,
+      contextId: taskId,
       status: {
         state: "completed",
-        message: { role: "agent", parts: [{ kind: "text", text: reply }] },
+        message: {
+          kind: "message",
+          messageId: crypto.randomUUID(),
+          role: "agent",
+          parts: [{ kind: "text", text: reply }],
+        },
       },
     },
   });
@@ -117,9 +129,8 @@ async function handleInbox(request: Request, env: Env): Promise<Response> {
   if (!expected || !token || !timingSafeEqual(token, expected)) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const raw = new URL(request.url).searchParams.get("after");
-  const parsed = raw === null ? 0 : Number(raw);
-  const after = Number.isFinite(parsed) ? parsed : 0;
+  // The DO clamps to a non-negative integer; the worker only needs to not NaN.
+  const after = Number(new URL(request.url).searchParams.get("after")) || 0;
   const contacts = await env.Inbox.get(
     env.Inbox.idFromName("inbox"),
   ).listContacts(after);
@@ -225,19 +236,18 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   // reconnect consumes from the anonymous bucket like a new session.
   const gated = await x402Gate(request, env);
   if (gated) return gated;
+  // chat.js mints flue_session client-side before connecting, so there is no
+  // server mint: a valid cookie resumes that session, anything else gets an
+  // ephemeral one.
   const cookie = parseCookies(request.headers.get("Cookie")).get("flue_session");
-  const existing = cookie && SESSION_ID_RE.test(cookie) ? cookie : undefined;
-  const sessionId = existing ?? crypto.randomUUID();
+  const sessionId =
+    cookie && SESSION_ID_RE.test(cookie) ? cookie : crypto.randomUUID();
   const stub = await getAgentByName(env.FlueAgent, sessionId);
-  if (existing) return stub.fetch(request);
-  const forward = new Request(request.url, request);
-  forward.headers.set("x-flue-new-session", sessionId);
-  return stub.fetch(forward);
+  return stub.fetch(request);
 }
 
 const GITHUB_EVENTS_URL =
   "https://api.github.com/users/pgebheim/events/public";
-const GITHUB_ACTIVITY_KEY = "context:github-activity";
 
 async function refreshGithubActivity(env: Env): Promise<void> {
   try {

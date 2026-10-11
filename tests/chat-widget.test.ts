@@ -10,30 +10,8 @@ const readIndex = () => readFileSync(pub("index.html"), "utf8");
 // Missing chat.js reads as "" so pins fail on assertions, not on ENOENT.
 const readChat = () =>
   existsSync(pub("chat.js")) ? readFileSync(pub("chat.js"), "utf8") : "";
-const readAgent = () => readFileSync(join(root, "src", "agent.ts"), "utf8");
-
 const GITHUB_PROFILE = "https://github.com/pgebheim";
 const LINKEDIN_PROFILE = "https://www.linkedin.com/in/pgebheim/";
-
-// Contract pinned from src/worker.ts handleChat + src/agent.ts onMessage:
-// client sends {"type":"message","text":...} over a same-origin WS at
-// /api/chat; the server replies {"type":"reply","text":...} and replays
-// history on connect as {"type":"history","role":...,"text":...}.
-describe("server frame contract (src/agent.ts)", () => {
-  test("server accepts {\"type\":\"message\",\"text\"} frames", () => {
-    const agent = readAgent();
-    expect(agent).toContain('parsed?.type !== "message"');
-    expect(agent).toContain('typeof parsed.text !== "string"');
-  });
-
-  test("server replies with {\"type\":\"reply\",\"text\"}", () => {
-    expect(readAgent()).toContain('type: "reply"');
-  });
-
-  test("server replays history as {\"type\":\"history\",\"role\",\"text\"}", () => {
-    expect(readAgent()).toContain('type: "history"');
-  });
-});
 
 describe("chat widget in public/index.html", () => {
   test("includes the widget via a script tag loading chat.js", () => {

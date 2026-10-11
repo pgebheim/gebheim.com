@@ -164,7 +164,7 @@ describe("cron trigger", () => {
   });
 
   test("schedules exactly 0 6 * * 1 and nothing else", () => {
-    expect(hcl).toMatch(/crons\s*=\s*\[\s*"0 6 \* \* 1"\s*\]/);
+    expect(hcl).toMatch(/schedules\s*=\s*\[\{\s*cron\s*=\s*"0 6 \* \* 1"\s*\}\]/);
   });
 });
 

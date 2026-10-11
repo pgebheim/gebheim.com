@@ -44,16 +44,19 @@ describe("gitops terraform workflow", () => {
     expect(wf).toMatch(/github\.ref\s*==\s*'refs\/heads\/main'/);
   });
 
-  test("sources every credential from GitHub secrets, never literals", () => {
-    for (const name of [
-      "CLOUDFLARE_API_TOKEN",
-      "TF_VAR_ACCOUNT_ID",
-      "TF_VAR_INBOX_TOKEN",
-      "AWS_ACCESS_KEY_ID",
-      "AWS_SECRET_ACCESS_KEY",
+  test("maps every credential from GitHub secrets into the env terraform reads", () => {
+    // Terraform matches TF_VAR_ names case-sensitively and the variables are
+    // declared lowercase, so the env keys must be lowercase even though the
+    // GitHub secret names are uppercase.
+    for (const [envKey, secret] of [
+      ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKEN"],
+      ["TF_VAR_account_id", "TF_VAR_ACCOUNT_ID"],
+      ["TF_VAR_inbox_token", "TF_VAR_INBOX_TOKEN"],
+      ["AWS_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID"],
+      ["AWS_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY"],
     ]) {
-      expect(wf).toContain(`${name}: `);
-      expect(wf).toContain(`secrets.${name}`);
+      expect(wf).toContain(`${envKey}: `);
+      expect(wf).toContain(`secrets.${secret}`);
     }
   });
 });
