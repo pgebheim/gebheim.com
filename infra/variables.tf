@@ -4,7 +4,7 @@ variable "account_id" {
 }
 
 variable "zone_id" {
-  type        = string
+  type = string
   # gebheim.com zone; not a secret, stable for this site.
   default     = "3878c66893a78222f2a99354a4c5d0d2"
   description = "Zone ID for gebheim.com."

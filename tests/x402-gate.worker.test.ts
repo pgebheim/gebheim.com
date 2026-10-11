@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { SELF, env } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
+import { envRecord, inboxStub, installMockAI } from "./helpers.workers";
 
 /**
  * Contract suite for the shipped x402 gate (issue #7) on POST /agent and
@@ -47,26 +48,6 @@ import { SELF, env } from "cloudflare:test";
  *   anonymous count; a verifier that throws returns 402 or 503, never 200.
  */
 
-interface RateLimitRow {
-  key: string;
-  day: string;
-  count: number;
-}
-
-interface RateLimitInbox {
-  hitRateLimit(key: string, day: string): Promise<number>;
-  rateLimitRows(): Promise<RateLimitRow[]>;
-}
-
-const envRecord = () => env as unknown as Record<string, unknown>;
-
-const inboxStub = () =>
-  (env as unknown as { Inbox: DurableObjectNamespace }).Inbox.get(
-    (env as unknown as { Inbox: DurableObjectNamespace }).Inbox.idFromName(
-      "inbox",
-    ),
-  ) as unknown as RateLimitInbox;
-
 /** Proof format the mock verifier accepts: "mock:<payer>:<nonce>". */
 const PAYER = "0xpayerdeadbeef";
 const proof = (nonce: string, payer = PAYER) => `mock:${payer}:${nonce}`;
@@ -95,10 +76,6 @@ function installMockVerifier(): MockVerifier {
     },
   };
   return { calls, seen };
-}
-
-function installMockAI(): void {
-  envRecord().AI = { run: async () => ({ response: "MOCK_REPLY" }) };
 }
 
 function postAgent(ip: string, payment?: string) {
@@ -157,7 +134,7 @@ function expectPaymentRequired(res: Response): void {
 }
 
 beforeEach(() => {
-  installMockAI();
+  installMockAI(() => ({ response: "MOCK_REPLY" }));
   installMockVerifier();
   envRecord().X402_ENABLED = "true";
   delete envRecord().X402_PAY_TO;
@@ -324,12 +301,10 @@ describe("GET /api/chat new-session creation", () => {
 
   it("a reconnect within quota still upgrades 101", async () => {
     const ip = "203.0.113.21";
-    const first = await upgradeChat(ip);
+    // The widget mints the cookie client-side; the worker only resumes it.
+    const cookie = `flue_session=${crypto.randomUUID()}`;
+    const first = await upgradeChat(ip, cookie);
     expect(first.status).toBe(101);
-    const cookie = /flue_session=[^;]+/.exec(
-      first.headers.get("set-cookie") ?? "",
-    )?.[0];
-    expect(cookie).toBeDefined();
     acceptAndClose(first);
 
     const reconnect = await upgradeChat(ip, cookie);
@@ -339,12 +314,9 @@ describe("GET /api/chat new-session creation", () => {
 
   it("a cookie-carrying request past quota gets 402 like any other", async () => {
     const ip = "203.0.113.22";
-    const first = await upgradeChat(ip);
+    const cookie = `flue_session=${crypto.randomUUID()}`;
+    const first = await upgradeChat(ip, cookie);
     expect(first.status).toBe(101);
-    const cookie = /flue_session=[^;]+/.exec(
-      first.headers.get("set-cookie") ?? "",
-    )?.[0];
-    expect(cookie).toBeDefined();
     acceptAndClose(first);
 
     for (let i = 2; i <= 20; i++) {

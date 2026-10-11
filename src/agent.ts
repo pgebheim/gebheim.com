@@ -2,6 +2,7 @@ import { Agent } from "agents";
 import type { Connection, WSMessage } from "agents";
 import type { Env } from "./worker";
 import type { ContactInput, Inbox } from "./inbox";
+import { GITHUB_ACTIVITY_KEY } from "./github-activity";
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
@@ -105,25 +106,13 @@ export const tools: Record<string, Tool> = {
   },
 };
 
-export async function executeTool(
-  name: string,
-  args: ToolArgs,
-  ctx: ToolContext,
-): Promise<unknown> {
-  const tool = tools[name];
-  if (!tool) {
-    return { error: { code: "unknown_tool", message: `unknown tool: ${name}` } };
-  }
-  return tool.execute(args ?? {}, ctx);
-}
-
 async function buildSystemPrompt(env: Env): Promise<string> {
   const resumeJson = await env.ASSETS.fetch(
     new Request("https://gebheim.com/resume.json"),
   ).then((r) => r.text());
   let githubActivity: string | null = null;
   try {
-    githubActivity = await inboxStub(env).kvGet("context:github-activity");
+    githubActivity = await inboxStub(env).kvGet(GITHUB_ACTIVITY_KEY);
   } catch {
     githubActivity = null;
   }
@@ -175,9 +164,15 @@ export async function runAgentTurn(
     }));
     messages.push({ role: "assistant", content: "", tool_calls: shaped });
     for (let i = 0; i < calls.length; i++) {
-      const output = await executeTool(calls[i].name, calls[i].arguments ?? {}, {
-        env,
-      });
+      const tool = tools[calls[i].name];
+      const output = tool
+        ? await tool.execute(calls[i].arguments ?? {}, { env })
+        : {
+            error: {
+              code: "unknown_tool",
+              message: `unknown tool: ${calls[i].name}`,
+            },
+          };
       messages.push({
         role: "tool",
         tool_call_id: shaped[i].id,
@@ -190,20 +185,6 @@ export async function runAgentTurn(
 }
 
 export class FlueAgent extends Agent<Env> {
-  async fetch(request: Request): Promise<Response> {
-    const response = await super.fetch(request);
-    // The 101 upgrade response headers are immutable once the response crosses
-    // back to the Worker, so the session cookie is attached here in the DO.
-    const newSession = request.headers.get("x-flue-new-session");
-    if (newSession) {
-      response.headers.append(
-        "set-cookie",
-        `flue_session=${newSession}; Path=/; HttpOnly; Secure; SameSite=Lax`,
-      );
-    }
-    return response;
-  }
-
   private ensureSchema(): void {
     this.ctx.storage.sql.exec(
       `CREATE TABLE IF NOT EXISTS messages (
@@ -216,10 +197,10 @@ export class FlueAgent extends Agent<Env> {
 
   private history(): ChatMessage[] {
     this.ensureSchema();
+    // SAFETY: the messages table is created by ensureSchema() above with
+    // exactly these two TEXT columns, so the row shape is fixed.
     const rows = this.ctx.storage.sql
       .exec("SELECT role, content FROM messages ORDER BY rowid ASC")
-      // SAFETY: the messages table is created by ensureSchema() above with
-      // exactly these two TEXT columns, so the row shape is fixed.
       .toArray() as unknown as { role: string; content: string }[];
     return rows.map((row) => ({ role: row.role, content: row.content }));
   }

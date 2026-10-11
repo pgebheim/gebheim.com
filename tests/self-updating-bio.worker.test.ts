@@ -7,6 +7,11 @@ import {
   waitOnExecutionContext,
 } from "cloudflare:test";
 import type { Env } from "../src/worker";
+import {
+  GITHUB_ACTIVITY_KEY,
+  type GithubEvent as SrcGithubEvent,
+} from "../src/github-activity";
+import { inboxStub, installMockAI } from "./helpers.workers";
 
 /**
  * Contract suite for issue #6 (self-updating-bio).
@@ -35,7 +40,6 @@ import type { Env } from "../src/worker";
  *   behavior end to end.
  */
 
-const KV_KEY = "context:github-activity";
 const REPO = "pgebheim/gebheim.com";
 
 const importDigest = () => import("../src/github-activity");
@@ -43,24 +47,18 @@ const importWorker = () => import("../src/worker");
 
 const workerEnv = env as unknown as Env;
 
-function inboxStub() {
-  return workerEnv.Inbox.get(workerEnv.Inbox.idFromName("inbox"));
-}
-
 function readStored() {
-  return inboxStub().kvGet(KV_KEY);
+  return inboxStub().kvGet(GITHUB_ACTIVITY_KEY);
 }
 
 const daysAgo = (n: number) =>
   new Date(Date.now() - n * 86_400_000).toISOString();
 
-interface GithubEvent {
+// Extends the exported event type with the fields the GitHub API actually
+// sends; shapeDigest only reads the optional base fields.
+interface GithubEvent extends SrcGithubEvent {
   id: string;
-  type: string;
   actor: { login: string };
-  repo: { name: string };
-  payload: Record<string, unknown>;
-  created_at: string;
 }
 
 let eventSeq = 0;
@@ -333,30 +331,13 @@ describe("scheduled() handler", () => {
 });
 
 describe("system prompt integration", () => {
-  interface AiCall {
-    model: string;
-    payload: { messages?: { role: string; content?: unknown }[] };
-  }
-
-  function installMockAI(): { calls: AiCall[] } {
-    const mock = { calls: [] as AiCall[] };
-    (env as unknown as Record<string, unknown>).AI = {
-      run: async (model: string, payload: AiCall["payload"]) => {
-        mock.calls.push({
-          model,
-          payload: JSON.parse(JSON.stringify(payload)),
-        });
-        return { response: "MOCK_REPLY" };
-      },
-    };
-    return mock;
-  }
+  const mockReply = () => ({ response: "MOCK_REPLY" });
 
   it("sends an AI request whose system prompt contains the stored digest", async () => {
     const digest =
       "- pgebheim/gebheim.com 2026-08-10: shipped the weekly digest";
-    await inboxStub().kvSet(KV_KEY, digest);
-    const mockAI = installMockAI();
+    await inboxStub().kvSet(GITHUB_ACTIVITY_KEY, digest);
+    const mockAI = installMockAI(mockReply);
 
     const res = await SELF.fetch("https://gebheim.com/agent", {
       method: "POST",
@@ -384,8 +365,8 @@ describe("system prompt integration", () => {
   });
 
   it("labels the GitHub activity section as untrusted data", async () => {
-    await inboxStub().kvSet(KV_KEY, "- pgebheim/gebheim.com 2026-08-10: x");
-    const mockAI = installMockAI();
+    await inboxStub().kvSet(GITHUB_ACTIVITY_KEY, "- pgebheim/gebheim.com 2026-08-10: x");
+    const mockAI = installMockAI(mockReply);
 
     await SELF.fetch("https://gebheim.com/agent", {
       method: "POST",
