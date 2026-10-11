@@ -1,6 +1,7 @@
 import { getAgentByName } from "agents";
 import { runAgentTurn } from "./agent";
 import { GITHUB_ACTIVITY_KEY, shapeDigest } from "./github-activity";
+import { resolvePersona } from "./personas";
 import type { FlueAgent } from "./agent";
 import type { GithubEvent } from "./github-activity";
 import type { Inbox } from "./inbox";
@@ -59,6 +60,7 @@ interface JsonRpcRequest {
     message?: {
       messageId?: unknown;
       parts?: unknown;
+      metadata?: unknown;
     };
   };
 }
@@ -93,7 +95,12 @@ async function handleAgentRpc(request: Request, env: Env): Promise<Response> {
     .join("\n");
   let reply: string;
   try {
-    reply = await runAgentTurn(env, [], text);
+    const metadata = message?.metadata;
+    const personaId =
+      metadata && typeof metadata === "object"
+        ? (metadata as { persona?: unknown }).persona
+        : undefined;
+    reply = await runAgentTurn(env, [], text, resolvePersona(personaId));
   } catch {
     return jsonrpcError(body.id ?? null, -32603, "Internal error");
   }

@@ -277,6 +277,49 @@ describe("Workers AI request shape", () => {
       "Tell me about Paul",
     );
   });
+
+  it("applies a persona from A2A message metadata", async () => {
+    const res = await postAgent(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "persona-1",
+        method: "message/send",
+        params: {
+          message: {
+            messageId: "msg-persona-1",
+            metadata: { persona: "vampire" },
+            parts: [{ kind: "text", text: "Tell me about Paul" }],
+          },
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const messages = mockAI.calls[0].payload.messages ?? [];
+    expect(String(messages[0].content)).toContain("vampire");
+  });
+
+  it("falls back to the default voice for an unknown persona", async () => {
+    const res = await postAgent(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "persona-2",
+        method: "message/send",
+        params: {
+          message: {
+            messageId: "msg-persona-2",
+            metadata: { persona: "pirate" },
+            parts: [{ kind: "text", text: "Tell me about Paul" }],
+          },
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const messages = mockAI.calls[0].payload.messages ?? [];
+    const system = String(messages[0].content);
+    expect(system).toContain("You are Page");
+    expect(system).not.toContain("vampire");
+    expect(system).not.toContain("robot");
+  });
 });
 
 describe("POST /agent (A2A JSON-RPC 2.0)", () => {
@@ -531,6 +574,21 @@ describe("GET /api/chat (WebSocket)", () => {
     const ws = res.webSocket!;
     ws.accept();
     ws.close();
+  });
+
+  it("applies a persona sent over the chat socket", async () => {
+    const res = await upgradeChat();
+    expect(res.status).toBe(101);
+    const ws = res.webSocket!;
+    const incoming = collect(ws);
+    ws.accept();
+    ws.send(
+      JSON.stringify({ type: "message", text: "hello paul", persona: "robot" }),
+    );
+    await incoming.waitFor((m) => m.includes("MOCK_REPLY"));
+    ws.close();
+    const messages = mockAI.calls[0].payload.messages ?? [];
+    expect(String(messages[0].content)).toContain("robot");
   });
 
   it("rejects a plain HTTP GET with a 4xx status, not an exception", async () => {

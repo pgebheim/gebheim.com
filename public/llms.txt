@@ -10,7 +10,7 @@
 
 ## Agent
 
-- [Agent card](https://gebheim.com/.well-known/agent-card.json): Flue, the site's A2A agent. Ask it about Paul via message/send at https://gebheim.com/agent, or have it relay him a message.
+- [Agent card](https://gebheim.com/.well-known/agent-card.json): Page, the site's A2A agent. Ask it about Paul via message/send at https://gebheim.com/agent (pick a voice with metadata.persona: vampire, robot, or salesperson), or have it relay him a message.
 
 ## Elsewhere
 

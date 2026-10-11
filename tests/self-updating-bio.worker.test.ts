@@ -361,7 +361,7 @@ describe("system prompt integration", () => {
     expect(messages[0].role).toBe("system");
     const system = String(messages[0].content);
     expect(system).toContain(digest);
-    expect(system).toContain("You are Flue");
+    expect(system).toContain("You are Page");
   });
 
   it("labels the GitHub activity section as untrusted data", async () => {
