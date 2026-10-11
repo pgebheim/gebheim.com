@@ -12,10 +12,9 @@
   var input = document.getElementById("chat-input");
   var send = document.getElementById("chat-send");
 
-  // Runs before the socket connects, so every request from this client
-  // already carries a valid JS-minted UUID and the worker's existing-cookie
-  // branch always matches; its HttpOnly mint path is for clients that arrive
-  // without a readable cookie.
+  // Runs before the socket connects: the worker has no server-side mint, so
+  // the client mints the session UUID itself. The worker resumes any valid
+  // UUID cookie; anything else gets an ephemeral session.
   function ensureSession() {
     if (/(?:^|;\s*)flue_session=/.test(document.cookie)) return;
     var id =
