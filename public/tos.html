@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms — Paul Gebheim</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #f5eddf;
+    --ink: #24221e;
+    --muted: #6d665d;
+    --berry: #b93b67;
+    --berry-dark: #76203f;
+    --line: rgba(36, 34, 30, 0.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    background: var(--paper); color: var(--ink);
+    line-height: 1.55; margin: 0; font-size: 16px;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: 0.13;
+    background-image: radial-gradient(rgba(36, 34, 30, 0.32) 0.6px, transparent 0.6px);
+    background-size: 7px 7px; mix-blend-mode: multiply;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  header h1 {
+    margin: 0 0 .4rem; font-size: clamp(2.2rem, 6vw, 3.5rem);
+    letter-spacing: -0.04em; line-height: 1.02;
+  }
+  header .tagline { color: var(--muted); margin: 0 0 .6rem; font-size: 1.05rem; font-style: italic; }
+  h2 {
+    color: var(--berry-dark);
+    font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-transform: uppercase; letter-spacing: .11em;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: .3rem; margin: 2.25rem 0 1rem;
+  }
+  a { color: var(--berry-dark); }
+  ul { margin: .4rem 0 0; padding-left: 1.2rem; }
+  li { margin-bottom: .25rem; }
+  footer { margin-top: 3rem; font-size: .88rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Terms</h1>
+    <p class="tagline">The rules for tools that mostly have one user.</p>
+  </header>
+
+  <section>
+    <h2>What these services are</h2>
+    <p>The applications associated with this domain are personal tools operated by
+    <strong>Paul Gebheim</strong>. They are not a commercial service, are provided to the
+    operator alone, and are made available to anyone else only on an as-is, if-ever basis.</p>
+  </section>
+
+  <section>
+    <h2>The terms</h2>
+    <ul>
+      <li><strong>As-is.</strong> Everything is provided without warranty of any kind, express or implied.</li>
+      <li><strong>No liability.</strong> The operator is not liable for any damages arising from use or inability to use these tools.</li>
+      <li><strong>No guarantee of availability.</strong> These tools can change or disappear at any time, without notice.</li>
+      <li><strong>Your account, your actions.</strong> Where a tool acts on a third-party account (e.g. Google), it does so only with that account owner's authorization.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Contact</h2>
+    <p>Questions: <a href="mailto:pgebheim@gmail.com">pgebheim@gmail.com</a>.</p>
+  </section>
+
+  <footer>
+    <p>Effective October 2026 · <a href="/">gebheim.com</a></p>
+  </footer>
+</main>
+</body>
+</html>
