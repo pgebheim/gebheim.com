@@ -51,7 +51,13 @@ jobs:
 
       - run: terraform -chdir=infra plan -out=tfplan
 
-      - run: terraform -chdir=infra apply -auto-approve tfplan
+      # The v5 provider reports a fresh startup_time_ms after every script
+      # update, tripping "Provider produced inconsistent result after apply"
+      # (the deploy itself succeeds). The retry's plan refreshes state from
+      # the API, finds no changes, and exits 0.
+      - run: |
+          terraform -chdir=infra apply -auto-approve tfplan \
+            || terraform -chdir=infra apply -auto-approve
         if: >
           github.ref == 'refs/heads/main'
           && github.event_name != 'pull_request'
