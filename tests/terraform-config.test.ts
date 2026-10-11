@@ -88,23 +88,11 @@ describe("cloudflare_workers_script resource", () => {
     },
   );
 
-  test.each(["FlueAgent", "Inbox"])(
-    "migrates %s via new_sqlite_classes",
-    (className) => {
-      expect(hcl).toMatch(
-        new RegExp(`new_sqlite_classes\\s*=\\s*\\[[^\\]]*"${className}"[^\\]]*\\]`),
-      );
-    },
-  );
-
-  test("migration new_tag matches wrangler.toml's [[migrations]] tag", () => {
-    for (const migration of wrangler.migrations) {
-      if (migration.new_sqlite_classes?.length) {
-        expect(hcl).toMatch(
-          new RegExp(`new_tag\\s*=\\s*"${escapeRe(migration.tag)}"`),
-        );
-      }
-    }
+  test("terraform carries no migrations block (steady state)", () => {
+    // The Workers API treats DO migrations as one-way; a stale block whose
+    // tag was already applied breaks every in-place update (provider issue
+    // #5701). The classes are live, so the config must send no migrations.
+    expect(hcl).not.toMatch(/migrations\s*=/);
   });
 
   test("binds Workers AI under wrangler.toml's [ai].binding name", () => {
