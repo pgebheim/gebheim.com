@@ -7,7 +7,7 @@ export interface ContactInput {
   message: string;
 }
 
-export interface ContactRow extends ContactInput {
+interface ContactRow extends ContactInput {
   rowid: number;
   created_at: string;
 }
@@ -56,6 +56,8 @@ export class Inbox extends DurableObject {
 
   listContacts(after = 0): ContactRow[] {
     const since = Number.isFinite(after) && after > 0 ? Math.floor(after) : 0;
+    // SAFETY: the contacts table is created in the constructor with exactly
+    // these columns, so the row shape is fixed.
     return this.ctx.storage.sql
       .exec(
         `SELECT rowid, id, name, contact, message, created_at
@@ -86,6 +88,8 @@ export class Inbox extends DurableObject {
   }
 
   rateLimitRows(): { key: string; day: string; count: number }[] {
+    // SAFETY: the rate_limits table is created in the constructor with
+    // exactly these columns, so the row shape is fixed.
     return this.ctx.storage.sql
       .exec(`SELECT key, day, "count" FROM rate_limits ORDER BY key`)
       .toArray() as unknown as { key: string; day: string; count: number }[];
