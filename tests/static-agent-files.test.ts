@@ -41,6 +41,12 @@ describe("public/llms.txt", () => {
     for (const url of urls) expect(url).toMatch(/^https:\/\//);
     expect(urls.some((u) => u.startsWith("https://gebheim.com"))).toBe(true);
   });
+
+  test("points agents at the A2A card and endpoint", () => {
+    const text = read(path);
+    expect(text).toContain("https://gebheim.com/.well-known/agent-card.json");
+    expect(text).toContain("https://gebheim.com/agent");
+  });
 });
 
 describe("JSON-LD in public/index.html", () => {

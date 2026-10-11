@@ -8,6 +8,10 @@
 - [Resume (JSON)](https://gebheim.com/resume.json): Machine-readable JSON Resume
 - [Colophon](https://gebheim.com/colophon.html): The tools that built this site
 
+## Agent
+
+- [Agent card](https://gebheim.com/.well-known/agent-card.json): Flue, the site's A2A agent. Ask it about Paul via message/send at https://gebheim.com/agent, or have it relay him a message.
+
 ## Elsewhere
 
 - [GitHub](https://github.com/pgebheim): Open-source work and personal projects
