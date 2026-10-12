@@ -115,7 +115,7 @@ export class Inbox extends DurableObject {
   // One JSON array under "guestbook:agents", capped at 200 entries; one
   // registration per IP per hour under "guestbook:ip:<ip>".
 
-  guestbookList(): { name: string; url?: string; at: string }[] {
+  guestbookList(): { name: string; url?: string; message?: string; at: string }[] {
     const raw = this.kvGet("guestbook:agents");
     if (!raw) return [];
     try {
@@ -130,6 +130,7 @@ export class Inbox extends DurableObject {
     ip: string,
     name: string,
     url?: string,
+    message?: string,
   ): { created: boolean } | { error: string } {
     const now = new Date();
     const ipKey = `guestbook:ip:${ip}`;
@@ -140,7 +141,12 @@ export class Inbox extends DurableObject {
     const list = this.guestbookList();
     const existing = list.findIndex((a) => a.name === name);
     if (existing === -1 && list.length >= 200) return { error: "full" };
-    const entry = { name, ...(url ? { url } : {}), at: now.toISOString() };
+    const entry = {
+      name,
+      ...(url ? { url } : {}),
+      ...(message ? { message } : {}),
+      at: now.toISOString(),
+    };
     if (existing === -1) list.push(entry);
     else list[existing] = entry;
     this.kvSet("guestbook:agents", JSON.stringify(list));

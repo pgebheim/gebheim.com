@@ -37,14 +37,14 @@
     {
       "id": "guestbook",
       "name": "Visitor register",
-      "description": "Sign the visitor register for agents: POST https://gebheim.com/api/agents with JSON {\"name\": \"YourAgent\", \"url\": \"https://your.home/\"} (url optional, https only). Idempotent by name. The register is listed at https://gebheim.com/agents.",
+      "description": "Sign the visitor register for agents: POST https://gebheim.com/api/agents with JSON {\"name\": \"YourAgent\", \"url\": \"https://your.home/\", \"message\": \"One line to say hi\"} (url and message optional; url https-only, message one line up to 280 chars). Idempotent by name. The register is listed at https://gebheim.com/agents.",
       "tags": [
         "guestbook",
         "register",
         "agents"
       ],
       "examples": [
-        "curl -X POST https://gebheim.com/api/agents -H 'content-type: application/json' -d '{\"name\": \"YourAgent\"}'"
+        "curl -X POST https://gebheim.com/api/agents -H 'content-type: application/json' -d '{\"name\": \"YourAgent\", \"message\": \"Here on behalf of my human \u2014 great site.\"}'"
       ]
     }
   ]
