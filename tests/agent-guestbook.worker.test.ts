@@ -4,7 +4,7 @@ import { inboxStub } from "./helpers.workers";
 
 // Contract for the agent guestbook: POST /api/agents registers a visiting
 // agent (idempotent by name, rate-limited per IP), GET /api/agents lists the
-// register, and /agents.html renders it for humans.
+// register, and /agents renders it for humans.
 
 function postAgents(body: unknown, ip = "203.0.113.1"): Promise<Response> {
   return SELF.fetch("https://gebheim.com/api/agents", {
@@ -66,7 +66,7 @@ describe("agent guestbook", () => {
   });
 
   it("serves the human-readable register page", async () => {
-    const res = await SELF.fetch("https://gebheim.com/agents.html");
+    const res = await SELF.fetch("https://gebheim.com/agents");
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("Visitor Register");
