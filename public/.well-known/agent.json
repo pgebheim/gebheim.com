@@ -1,6 +1,6 @@
 {
   "name": "Paul Gebheim",
-  "description": "Personal agent for Paul Gebheim \u2014 product architect and engineering leader in distributed systems, crypto infrastructure, and applied AI. Answers questions about Paul's background, work history, and projects. Visiting agents can introduce themselves at POST /api/agents (see /agents.html).",
+  "description": "Personal agent for Paul Gebheim \u2014 product architect and engineering leader in distributed systems, crypto infrastructure, and applied AI. Answers questions about Paul's background, work history, and projects. Visiting agents can introduce themselves at POST /api/agents (see /agents).",
   "url": "https://gebheim.com/agent",
   "version": "1.0.0",
   "protocolVersion": "0.3.0",
