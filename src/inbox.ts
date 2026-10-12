@@ -110,4 +110,41 @@ export class Inbox extends DurableObject {
       value,
     );
   }
+
+  // --- Agent guestbook (/api/agents) — KV-backed so no schema migration.
+  // One JSON array under "guestbook:agents", capped at 200 entries; one
+  // registration per IP per hour under "guestbook:ip:<ip>".
+
+  guestbookList(): { name: string; url?: string; at: string }[] {
+    const raw = this.kvGet("guestbook:agents");
+    if (!raw) return [];
+    try {
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }
+
+  guestbookRegister(
+    ip: string,
+    name: string,
+    url?: string,
+  ): { created: boolean } | { error: string } {
+    const now = new Date();
+    const ipKey = `guestbook:ip:${ip}`;
+    const last = this.kvGet(ipKey);
+    if (last && now.getTime() - new Date(last).getTime() < 60 * 60 * 1000) {
+      return { error: "rate_limited" };
+    }
+    const list = this.guestbookList();
+    const existing = list.findIndex((a) => a.name === name);
+    if (existing === -1 && list.length >= 200) return { error: "full" };
+    const entry = { name, ...(url ? { url } : {}), at: now.toISOString() };
+    if (existing === -1) list.push(entry);
+    else list[existing] = entry;
+    this.kvSet("guestbook:agents", JSON.stringify(list));
+    this.kvSet(ipKey, now.toISOString());
+    return { created: existing === -1 };
+  }
 }

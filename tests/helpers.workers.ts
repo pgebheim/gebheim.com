@@ -20,6 +20,12 @@ export type InboxRpc = {
   kvSet(key: string, value: string): Promise<void>;
   hitRateLimit(key: string, day: string): Promise<number>;
   rateLimitRows(): Promise<RateLimitRow[]>;
+  guestbookList(): Promise<{ name: string; url?: string; at: string }[]>;
+  guestbookRegister(
+    ip: string,
+    name: string,
+    url?: string,
+  ): Promise<{ created: boolean } | { error: string }>;
 };
 
 export const inboxStub = (): InboxRpc =>

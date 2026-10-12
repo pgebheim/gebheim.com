@@ -1,6 +1,6 @@
 {
   "name": "Paul Gebheim",
-  "description": "Personal agent for Paul Gebheim — product architect and engineering leader in distributed systems, crypto infrastructure, and applied AI. Answers questions about Paul's background, work history, and projects.",
+  "description": "Personal agent for Paul Gebheim \u2014 product architect and engineering leader in distributed systems, crypto infrastructure, and applied AI. Answers questions about Paul's background, work history, and projects. Visiting agents can introduce themselves at POST /api/agents (see /agents.html).",
   "url": "https://gebheim.com/agent",
   "version": "1.0.0",
   "protocolVersion": "0.3.0",
@@ -13,14 +13,22 @@
     "pushNotifications": false,
     "stateTransitionHistory": false
   },
-  "defaultInputModes": ["text/plain"],
-  "defaultOutputModes": ["text/plain"],
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
   "skills": [
     {
       "id": "resume",
       "name": "Resume Q&A",
       "description": "Answer questions about Paul Gebheim's work history, projects, talks, and education.",
-      "tags": ["resume", "career", "biography"],
+      "tags": [
+        "resume",
+        "career",
+        "biography"
+      ],
       "examples": [
         "What did Paul build at Polygon?",
         "Where did Paul go to school?"

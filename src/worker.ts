@@ -234,6 +234,45 @@ async function x402Gate(request: Request, env: Env): Promise<Response | null> {
   return null;
 }
 
+async function handleAgents(request: Request, env: Env): Promise<Response> {
+  const cors = { "content-type": "application/json" };
+  const inbox = env.Inbox.get(env.Inbox.idFromName("inbox"));
+  if (request.method === "GET") {
+    return Response.json({ agents: await inbox.guestbookList() });
+  }
+  if (request.method !== "POST") {
+    return new Response("method not allowed", { status: 405 });
+  }
+  let body: { name?: unknown; url?: unknown };
+  try {
+    body = (await request.json()) as { name?: unknown; url?: unknown };
+  } catch {
+    return Response.json({ error: "invalid json" }, { status: 400 });
+  }
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (name.length < 1 || name.length > 80 || /<|>|\n/.test(name)) {
+    return Response.json({ error: "invalid name" }, { status: 400, headers: cors });
+  }
+  let url: string | undefined;
+  if (body.url != null) {
+    if (
+      typeof body.url !== "string" ||
+      body.url.length > 200 ||
+      !body.url.startsWith("https://")
+    ) {
+      return Response.json({ error: "invalid url" }, { status: 400, headers: cors });
+    }
+    url = body.url;
+  }
+  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const result = await inbox.guestbookRegister(ip, name, url);
+  if ("error" in result) {
+    const status = result.error === "rate_limited" ? 429 : 503;
+    return Response.json({ error: result.error }, { status, headers: cors });
+  }
+  return Response.json(result, { status: result.created ? 201 : 200, headers: cors });
+}
+
 async function handleChat(request: Request, env: Env): Promise<Response> {
   if ((request.headers.get("Upgrade") ?? "").toLowerCase() !== "websocket") {
     return new Response("Expected a WebSocket upgrade", { status: 426 });
@@ -301,6 +340,9 @@ export default {
     }
     if (url.pathname === "/api/chat") {
       return handleChat(request, env);
+    }
+    if (url.pathname === "/api/agents") {
+      return handleAgents(request, env);
     }
     return env.ASSETS.fetch(request);
   },
