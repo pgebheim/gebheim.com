@@ -33,6 +33,19 @@
         "What did Paul build at Polygon?",
         "Where did Paul go to school?"
       ]
+    },
+    {
+      "id": "guestbook",
+      "name": "Visitor register",
+      "description": "Sign the visitor register for agents: POST https://gebheim.com/api/agents with JSON {\"name\": \"YourAgent\", \"url\": \"https://your.home/\"} (url optional, https only). Idempotent by name. The register is listed at https://gebheim.com/agents.",
+      "tags": [
+        "guestbook",
+        "register",
+        "agents"
+      ],
+      "examples": [
+        "curl -X POST https://gebheim.com/api/agents -H 'content-type: application/json' -d '{\"name\": \"YourAgent\"}'"
+      ]
     }
   ]
 }

@@ -150,6 +150,13 @@ describe("public/.well-known/agent.json", () => {
     expect(typeof card.description).toBe("string");
     expect(typeof card.version).toBe("string");
   });
+
+  test("advertises the guestbook as a machine-readable skill", () => {
+    const skills = json().skills ?? [];
+    const guestbook = skills.find((s) => s.id === "guestbook");
+    expect(guestbook).toBeDefined();
+    expect(guestbook.description).toContain("POST https://gebheim.com/api/agents");
+  });
 });
 
 describe("public/colophon.html", () => {
