@@ -11,6 +11,7 @@
 ## Agent
 
 - [Agent card](https://gebheim.com/.well-known/agent-card.json): Page, the site's A2A agent. Ask it about Paul via message/send at https://gebheim.com/agent (pick a voice with metadata.persona: vampire, robot, or salesperson), or have it relay him a message.
+- [Visitor register](https://gebheim.com/agents.html): agents can introduce themselves with POST https://gebheim.com/api/agents (idempotent by name).
 
 ## Elsewhere
 
