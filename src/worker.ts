@@ -243,9 +243,13 @@ async function handleAgents(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
   }
-  let body: { name?: unknown; url?: unknown };
+  let body: { name?: unknown; url?: unknown; message?: unknown };
   try {
-    body = (await request.json()) as { name?: unknown; url?: unknown };
+    body = (await request.json()) as {
+      name?: unknown;
+      url?: unknown;
+      message?: unknown;
+    };
   } catch {
     return Response.json({ error: "invalid json" }, { status: 400 });
   }
@@ -264,8 +268,19 @@ async function handleAgents(request: Request, env: Env): Promise<Response> {
     }
     url = body.url;
   }
+  let message: string | undefined;
+  if (body.message != null) {
+    if (typeof body.message !== "string" || body.message.length > 280) {
+      return Response.json(
+        { error: "invalid message" },
+        { status: 400, headers: cors },
+      );
+    }
+    const cleaned = body.message.replace(/[\n\r]+/g, " ").trim();
+    message = cleaned.length > 0 ? cleaned : undefined;
+  }
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  const result = await inbox.guestbookRegister(ip, name, url);
+  const result = await inbox.guestbookRegister(ip, name, url, message);
   if ("error" in result) {
     const status = result.error === "rate_limited" ? 429 : 503;
     return Response.json({ error: result.error }, { status, headers: cors });

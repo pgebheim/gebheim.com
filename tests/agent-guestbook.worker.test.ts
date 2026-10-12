@@ -57,6 +57,23 @@ describe("agent guestbook", () => {
     expect((await postAgents("not json")).status).toBe(400);
   });
 
+  it("accepts a guestbook message and collapses newlines", async () => {
+    const res = await postAgents({
+      name: "ChattyBot",
+      message: "Here on behalf of my human.\nGreat site.",
+    });
+    expect(res.status).toBe(201);
+    const list = await (await SELF.fetch("https://gebheim.com/api/agents")).json();
+    expect(list.agents[0].message).toBe("Here on behalf of my human. Great site.");
+  });
+
+  it("rejects invalid messages with 400", async () => {
+    expect(
+      (await postAgents({ name: "Bot", message: "x".repeat(281) })).status,
+    ).toBe(400);
+    expect((await postAgents({ name: "Bot", message: 42 })).status).toBe(400);
+  });
+
   it("rate-limits one registration per IP per hour", async () => {
     const first = await postAgents({ name: "First" }, "203.0.113.1");
     expect(first.status).toBe(201);
