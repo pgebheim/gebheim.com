@@ -34,3 +34,19 @@ describe("legal pages", () => {
     expect(html).toMatch(/href=["']\/tos\.html["']/);
   });
 });
+
+describe("print resume", () => {
+  const html = () => readFileSync(pub("index.html"), "utf8");
+
+  test("a Download PDF button triggers the browser print dialog", () => {
+    expect(html()).toContain("window.print()");
+    expect(html()).toContain("Download PDF");
+  });
+
+  test("print styles hide the chat widget, footer, and the button itself", () => {
+    const printBlock = html().slice(html().indexOf("@media print"));
+    expect(printBlock).toContain("#chat { display: none; }");
+    expect(printBlock).toMatch(/footer[^{]*\{[^}]*display: none/);
+    expect(printBlock).toMatch(/\.no-print[^{]*\{[^}]*display: none/);
+  });
+});
