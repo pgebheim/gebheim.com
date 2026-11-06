@@ -545,8 +545,8 @@ describe("GET /api/chat (WebSocket)", () => {
   });
 
   it("replays history when reconnecting with the same session cookie", async () => {
-    // The widget mints the cookie (chat.js ensureSession); the worker only
-    // resumes whatever valid UUID arrives.
+    // Clients mint their own session cookie; the worker only resumes
+    // whatever valid UUID arrives.
     const cookie = `flue_session=${crypto.randomUUID()}`;
     const first = await upgradeChat({ Cookie: cookie });
     expect(first.status).toBe(101);
