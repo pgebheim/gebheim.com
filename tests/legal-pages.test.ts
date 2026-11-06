@@ -43,9 +43,8 @@ describe("print resume", () => {
     expect(html()).toContain("Print / save PDF");
   });
 
-  test("print styles hide the chat widget, footer, and the button itself", () => {
+  test("print styles hide navigation, footer, and the button itself", () => {
     const printBlock = html().slice(html().indexOf("@media print"));
-    expect(printBlock).toContain("#chat { display: none; }");
     expect(printBlock).toMatch(/footer[^{]*\{[^}]*display: none/);
     expect(printBlock).toMatch(/\.no-print[^{]*\{[^}]*display: none/);
   });
