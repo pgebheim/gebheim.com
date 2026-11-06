@@ -38,9 +38,9 @@ describe("legal pages", () => {
 describe("print resume", () => {
   const html = () => readFileSync(pub("index.html"), "utf8");
 
-  test("a Download PDF button triggers the browser print dialog", () => {
+  test("a Print / save PDF button triggers the browser print dialog", () => {
     expect(html()).toContain("window.print()");
-    expect(html()).toContain("Download PDF");
+    expect(html()).toContain("Print / save PDF");
   });
 
   test("print styles hide the chat widget, footer, and the button itself", () => {

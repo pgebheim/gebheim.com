@@ -11,6 +11,11 @@
   var form = document.getElementById("chat-form");
   var input = document.getElementById("chat-input");
   var send = document.getElementById("chat-send");
+  var status = document.getElementById("chat-status");
+
+  function setStatus(text) {
+    status.textContent = text;
+  }
 
   // Persona picker: the choice rides along with each message frame and is
   // remembered in localStorage; the server falls back to the default voice
@@ -23,25 +28,26 @@
   }
   var picker = document.getElementById("persona-picker");
   if (picker) {
-    var buttons = picker.querySelectorAll("[data-persona]");
+    var options = picker.querySelectorAll("input[name='persona']");
     var select = function (id) {
-      persona = id;
+      var known = false;
+      for (var i = 0; i < options.length; i++) {
+        if (options[i].getAttribute("data-persona") === id) known = true;
+      }
+      persona = known ? id : "default";
       try {
-        localStorage.setItem("page_persona", id);
+        localStorage.setItem("page_persona", persona);
       } catch {}
-      for (var i = 0; i < buttons.length; i++) {
-        buttons[i].setAttribute(
-          "aria-pressed",
-          buttons[i].getAttribute("data-persona") === id ? "true" : "false",
-        );
+      for (var i = 0; i < options.length; i++) {
+        options[i].checked = options[i].getAttribute("data-persona") === persona;
       }
     };
-    for (var i = 0; i < buttons.length; i++) {
-      (function (btn) {
-        btn.addEventListener("click", function () {
-          select(btn.getAttribute("data-persona"));
+    for (var i = 0; i < options.length; i++) {
+      (function (option) {
+        option.addEventListener("change", function () {
+          if (option.checked) select(option.getAttribute("data-persona"));
         });
-      })(buttons[i]);
+      })(options[i]);
     }
     select(persona);
   }
@@ -89,7 +95,15 @@
     li.href = LINKEDIN_URL;
     li.textContent = "LinkedIn";
     panel.appendChild(li);
-    panel.appendChild(document.createTextNode("."));
+    panel.appendChild(document.createTextNode(". "));
+    var reload = document.createElement("button");
+    reload.type = "button";
+    reload.className = "chat-reconnect";
+    reload.textContent = "Reload to reconnect";
+    reload.addEventListener("click", function () {
+      location.reload();
+    });
+    panel.appendChild(reload);
     widget.appendChild(panel);
   }
 
@@ -99,24 +113,27 @@
   url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
 
   var socket;
-  try {
-    socket = new WebSocket(url);
-  } catch {
-    showFallback();
-    return;
-  }
-
   var pending = null;
   var failed = false;
 
   input.disabled = true;
   send.disabled = true;
+  setStatus("Connecting to Page…");
+  try {
+    socket = new WebSocket(url);
+  } catch {
+    fail();
+    return;
+  }
   socket.addEventListener("open", function () {
+    if (failed) return;
     input.disabled = false;
     send.disabled = false;
+    setStatus("Ready. Ask about Paul’s experience, projects, or talks.");
   });
 
   socket.addEventListener("message", function (event) {
+    if (failed) return;
     var frame;
     try {
       frame = JSON.parse(event.data);
@@ -131,21 +148,30 @@
         pending = null;
       }
       addMessage("assistant", frame.text);
+      send.disabled = false;
+      setStatus("Ready for your next question.");
     }
   });
 
-  function fail() {
+  function fail(notSent) {
     if (failed) return;
     failed = true;
     if (pending) {
       pending.classList.remove("pending");
-      pending.textContent += " (not sent)";
+      pending.textContent += notSent === true ? " (not sent)" : " (delivery unconfirmed)";
       pending = null;
+      setStatus(notSent === true
+        ? "Your message was not sent. Reload to reconnect."
+        : "Connection lost. Your last message may have arrived. Reload to check the conversation before sending again.");
+    } else {
+      setStatus("Chat is offline. Reload to reconnect, or use the links below.");
     }
     showFallback();
   }
 
-  socket.addEventListener("error", fail);
+  socket.addEventListener("error", function () {
+    fail();
+  });
   socket.addEventListener("close", function () {
     fail();
   });
@@ -153,7 +179,7 @@
   form.addEventListener("submit", function (event) {
     event.preventDefault();
     var text = input.value.trim();
-    if (!text || failed) return;
+    if (!text || failed || pending) return;
     if (socket.readyState !== WebSocket.OPEN) {
       fail();
       return;
@@ -164,9 +190,11 @@
         JSON.stringify({ type: "message", "text": text, persona: persona }),
       );
     } catch {
-      fail();
+      fail(true);
       return;
     }
+    send.disabled = true;
+    setStatus("Page is replying…");
     input.value = "";
     input.focus();
   });
